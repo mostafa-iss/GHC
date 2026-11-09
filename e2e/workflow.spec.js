@@ -20,7 +20,7 @@ test("Arabic accounting workflow: center, balanced journal, reports, persistence
   await page
     .getByRole("button", { name: "القيود اليومية", exact: true })
     .click();
-  await page.getByRole("button", { name: "إضافة قيد يومي" }).click();
+  await page.getByRole("button", { name: "أضف قيد" }).click();
   await page
     .getByLabel("بيان القيد", { exact: true })
     .fill("تحصيل رسوم دورة الرياضيات");
@@ -35,15 +35,17 @@ test("Arabic accounting workflow: center, balanced journal, reports, persistence
       .selectOption({ label: "دورة الرياضيات" });
   await trs.nth(0).getByLabel("مدين", { exact: true }).fill("1250.50");
   await trs.nth(1).getByLabel("دائن", { exact: true }).fill("1000");
-  await page.getByRole("button", { name: "حفظ القيد", exact: true }).click();
+  await page.getByRole("button", { name: "حفظ وترحيل", exact: true }).click();
   await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
     "غير متوازن",
   );
   await trs.nth(1).getByLabel("دائن", { exact: true }).fill("1250.50");
-  await page.getByRole("button", { name: "حفظ القيد", exact: true }).click();
+  await page.getByRole("button", { name: "حفظ وترحيل", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
-    page.getByRole("cell", { name: "تحصيل رسوم دورة الرياضيات", exact: true }),
+    page
+      .locator(".journal-row")
+      .getByText("تحصيل رسوم دورة الرياضيات", { exact: true }),
   ).toBeVisible();
   await page.reload();
   await page.getByRole("button", { name: "استكشاف النسخة التجريبية" }).click();

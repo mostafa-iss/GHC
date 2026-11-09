@@ -30,6 +30,7 @@ export default function ImportPanel({
     [error, setError] = useState(""),
     [reading, setReading] = useState(false),
     [mode, setMode] = useState(initialMode),
+    [asDraft, setAsDraft] = useState(true),
     [partial, setPartial] = useState(false),
     [show, setShow] = useState("error");
   useEffect(() => {
@@ -124,6 +125,19 @@ export default function ImportPanel({
           شجرة الحسابات فقط
         </label>
       </div>
+      {mode === "entries" && (
+        <label className="field import-status">
+          حالة القيود بعد الاستيراد
+          <select
+            aria-label="حالة القيود بعد الاستيراد"
+            value={asDraft ? "draft" : "posted"}
+            onChange={(e) => setAsDraft(e.target.value === "draft")}
+          >
+            <option value="draft">مسودات — لا تؤثر في الحسابات</option>
+            <option value="posted">مرحّلة — تؤثر في الحسابات فورًا</option>
+          </select>
+        </label>
+      )}
       <label className="upload">
         <Upload size={24} />
         <strong>{file?.name || "اختر ملف Excel للمراجعة"}</strong>
@@ -353,10 +367,16 @@ export default function ImportPanel({
                     accountsOnly: mode === "accounts",
                     allowPartial: partial,
                     fileName: file.name,
+                    asDraft,
                   });
                   onSave(next, {
                     accountsOnly: mode === "accounts",
-                    entries: next.entries.length - data.entries.length,
+                    entries:
+                      next.entries.length -
+                      data.entries.length +
+                      (next.draftEntries?.length || 0) -
+                      (data.draftEntries?.length || 0),
+                    asDraft,
                     accounts: plan.chart.added,
                     linkUpdates: plan.linkUpdates.length,
                   });

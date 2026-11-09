@@ -33,6 +33,10 @@ export async function saveData(data, version) {
     localStorage.setItem(KEY, JSON.stringify(data));
     return version + 1;
   }
+  if (data.journalWorkflowVersion !== 2)
+    throw Error(
+      "يلزم تشغيل ملف تحديث قاعدة البيانات 002_journal_workflow.sql لتفعيل المسودات والحذف وتصفير القيود القديمة.",
+    );
   const { data: next, error } = await client.rpc("save_accounting_state", {
     expected_version: version,
     new_data: data,
@@ -53,7 +57,7 @@ export async function upload(file) {
     crypto.randomUUID() + "/" + file.name.replace(/[^\w.\u0600-\u06ff-]/g, "_");
   const { error } = await client.storage.from("attachments").upload(path, file);
   if (error) throw error;
-  return { path, name: file.name };
+  return { path, name: file.name, mimeType: file.type, size: file.size };
 }
 export async function openAttachment(a) {
   const { data, error } = await client.storage

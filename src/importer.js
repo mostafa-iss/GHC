@@ -358,6 +358,7 @@ export function extractWorkbook(sheets) {
     reference: col("مرجع/فاتورة", "المرجع"),
     notes: col("ملاحظات"),
     center: col("مركز التكلفة"),
+    driveLinks: col("روابط Drive"),
   };
   if (cols.date < 0) throw Error("عمود التاريخ مطلوب");
   const rows = allRows.slice(headerIndex + 1).map((values, i) => ({
@@ -365,6 +366,9 @@ export function extractWorkbook(sheets) {
     documentLinks: mergeDocuments(
       [
         values?.hyperlinks?.[cols.reference],
+        ...String(values?.[cols.driveLinks] || "")
+          .split(/\r?\n/)
+          .filter(Boolean),
         typeof values?.[cols.reference] === "string" &&
         /^https:\/\//i.test(values[cols.reference])
           ? values[cols.reference]
@@ -378,12 +382,23 @@ export function extractWorkbook(sheets) {
       ]),
     ),
   }));
-  const names = directory
-    ? directory[1]
-        .slice(1)
-        .map((r) => r?.[1])
-        .filter((v) => typeof v === "string" && v.trim())
-    : [];
+  let names = [];
+  if (directory) {
+    const list = directory[1];
+    const idx = list.findIndex(
+      (r) =>
+        r?.some((c) => normalizeName(c) === "اسم الحساب") &&
+        r?.some((c) => normalizeName(c) === "كود الحساب"),
+    );
+    const nameColumn =
+      idx >= 0
+        ? list[idx].findIndex((c) => normalizeName(c) === "اسم الحساب")
+        : 1;
+    names = list
+      .slice(idx >= 0 ? idx + 1 : 1)
+      .map((r) => r?.[nameColumn])
+      .filter((v) => typeof v === "string" && v.trim());
+  }
   for (const r of rows) if (r.account) names.push(String(r.account));
   return { sheetName, rows, names };
 }
@@ -493,8 +508,9 @@ export async function importPlan(extracted, data, overrides = {}) {
   }
   flush();
   const occurrence = new Map();
+  const knownEntries = [...data.entries, ...(data.draftEntries || [])];
   const existingKeys = new Set(
-    data.entries.map((e) => e.importKey).filter(Boolean),
+    knownEntries.map((e) => e.importKey).filter(Boolean),
   );
   for (const group of groupsPending) {
     const errors = group.filter((r) => r.error).map((r) => r.error),
@@ -602,7 +618,9 @@ export async function importPlan(extracted, data, overrides = {}) {
     linked: groupsOut.filter((g) => g.entry?.documentLinks?.length),
     linkUpdates: groupsOut.filter((g) => {
       if (g.status !== "duplicate") return false;
-      const existing = data.entries.find((e) => e.importKey === g.key);
+      const existing = [...data.entries, ...(data.draftEntries || [])].find(
+        (e) => e.importKey === g.key,
+      );
       const current = entryDocuments(
         existing,
         data.entryDocuments?.[existing.id],
@@ -616,15 +634,30 @@ export async function importPlan(extracted, data, overrides = {}) {
 export function applyImport(
   plan,
   data,
-  { accountsOnly = false, allowPartial = false, fileName = "" } = {},
+  {
+    accountsOnly = false,
+    allowPartial = false,
+    fileName = "",
+    asDraft = false,
+  } = {},
 ) {
   if (plan.chart.issues.length) throw Error(plan.chart.issues.join("؛ "));
   if (!accountsOnly && plan.errors.length && !allowPartial)
     throw Error(
       "راجع الصفوف غير الصالحة أو اختر صراحةً استيراد القيود السليمة فقط",
     );
-  let n = Math.max(0, ...data.entries.map((e) => e.number));
-  const seen = new Set(data.entries.map((e) => e.importKey));
+  let n = Math.max(
+    data.entryNumberSequence || 0,
+    0,
+    ...data.entries.map((e) => e.number),
+  );
+  const drafts = [...(data.draftEntries || [])];
+  let draftNumber = Math.max(
+    data.draftNumberSequence || 0,
+    0,
+    ...drafts.map((e) => e.draftNumber || 0),
+  );
+  const seen = new Set([...data.entries, ...drafts].map((e) => e.importKey));
   const entries = [];
   if (!accountsOnly)
     for (const g of plan.ready) {
@@ -637,13 +670,20 @@ export function applyImport(
         createdAt: new Date().toISOString(),
       };
       validateEntry(e, plan.chart.accounts, data.centers);
-      entries.push(e);
+      if (asDraft) {
+        delete e.number;
+        n--;
+        e.draftNumber = ++draftNumber;
+        drafts.push(e);
+      } else entries.push(e);
       seen.add(g.key);
     }
   const entryDocumentsMap = { ...(data.entryDocuments || {}) };
   if (!accountsOnly)
     for (const g of plan.linkUpdates || []) {
-      const existing = data.entries.find((e) => e.importKey === g.key);
+      const existing = [...data.entries, ...(data.draftEntries || [])].find(
+        (e) => e.importKey === g.key,
+      );
       entryDocumentsMap[existing.id] = mergeDocuments(
         entryDocuments(existing, entryDocumentsMap[existing.id]),
         g.entry.documentLinks,
@@ -656,6 +696,10 @@ export function applyImport(
       : {}),
     accounts: plan.chart.accounts,
     entries: [...data.entries, ...entries],
+    ...(asDraft
+      ? { draftEntries: drafts, draftNumberSequence: draftNumber }
+      : {}),
+    entryNumberSequence: n,
   };
 }
 export async function downloadChart(plan) {

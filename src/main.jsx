@@ -36,6 +36,7 @@ import {
   ledger,
   seed,
   descendants,
+  postingAccounts,
 } from "./accounting";
 import {
   cloud,
@@ -45,6 +46,18 @@ import {
   upload,
   openAttachment,
 } from "./store";
+import JournalFilters, { emptyJournalFilter } from "./JournalFilters";
+import JournalList from "./JournalList";
+import JournalDetail from "./JournalDetail";
+import {
+  allJournals,
+  filterJournals,
+  saveJournal,
+  changeJournalState,
+  resetJournals,
+  validateDraft,
+} from "./journals";
+import { exportJournals } from "./journalExport";
 import BrandLogo from "./BrandLogo";
 import DocumentsField from "./DocumentsField";
 import { entryDocuments, parseDocumentLinks } from "./documents";
@@ -82,6 +95,7 @@ function App() {
     [data, setData] = useState(seed()),
     [version, setVersion] = useState(0),
     [page, setPage] = useState("dashboard"),
+    [journalId, setJournalId] = useState(null),
     [error, setError] = useState(""),
     [toast, setToast] = useState(""),
     [modal, setModal] = useState(null),
@@ -225,13 +239,121 @@ function App() {
   function nav(id) {
     setPage(id);
     setSide(false);
-    setFilter({
-      from: "",
-      to: today(),
-      centerId: "",
-      accountId: "",
-      search: "",
+    setFilter(
+      id === "entries"
+        ? { ...emptyJournalFilter }
+        : { from: "", to: today(), centerId: "", accountId: "", search: "" },
+    );
+  }
+  function openJournal(e) {
+    setJournalId(e.id);
+    setPage("journal");
+    setError("");
+  }
+  function editJournal(e) {
+    action(async () => {
+      let current = e;
+      if (e.status === "posted") {
+        if (
+          !confirm(
+            "سيُحوّل القيد إلى مسودة ويُستبعد مؤقتًا من الحسابات حتى ترحيله مرة أخرى. متابعة؟",
+          )
+        )
+          return;
+        const next = changeJournalState(data, e.id, "draft");
+        await persist(next);
+        current = allJournals(next).find((x) => x.id === e.id);
+      }
+      setModal({
+        kind: "entry",
+        value: {
+          ...current,
+          lines: current.lines.map((l) => ({
+            ...l,
+            debit: l.debit ? (l.debit / 100).toFixed(2) : "",
+            credit: l.credit ? (l.credit / 100).toFixed(2) : "",
+          })),
+        },
+      });
     });
+  }
+  async function cleanupJournalFiles(next, files) {
+    if (!cloud) return;
+    const used = new Set(
+      allJournals(next).flatMap((e) =>
+        (e.attachments || []).map((a) => a.path),
+      ),
+    );
+    const orphan = [...new Set(files.map((a) => a.path))].filter(
+      (p) => !used.has(p),
+    );
+    for (let i = 0; i < orphan.length; i += 100) {
+      const { error } = await client.storage
+        .from("attachments")
+        .remove(orphan.slice(i, i + 100));
+      if (error)
+        throw Error(
+          "تم حذف القيود، لكن تعذر تنظيف بعض المرفقات: " + error.message,
+        );
+    }
+  }
+  function journalAction(e, operation) {
+    action(async () => {
+      if (
+        operation === "delete" &&
+        !confirm(
+          "حذف القيد " +
+            (e.number ? "#" + e.number : "المسودة") +
+            "؟ سيُحذف نهائيًا من القيود والحسابات مع الاحتفاظ بسجل العملية فقط.",
+        )
+      )
+        return;
+      if (
+        operation === "draft" &&
+        !confirm(
+          "تحويل القيد إلى مسودة سيخرجه من الحسابات والتقارير حتى ترحيله مجددًا. متابعة؟",
+        )
+      )
+        return;
+      const next = changeJournalState(data, e.id, operation);
+      await persist(next);
+      if (operation === "delete") {
+        nav("entries");
+        await cleanupJournalFiles(next, e.attachments || []);
+      }
+      setToast(
+        {
+          post: "تم ترحيل القيد وإضافته للحسابات",
+          draft: "تم تحويل القيد إلى مسودة واستبعاده من الحسابات",
+          delete: "تم حذف القيد واستبعاده من الحسابات",
+          restore: "تمت استعادة القيد",
+        }[operation],
+      );
+    });
+  }
+  async function saveLinks(e, links) {
+    setBusy(true);
+    setError("");
+    try {
+      await persist({
+        ...data,
+        entryDocuments: { ...(data.entryDocuments || {}), [e.id]: links },
+      });
+    } catch (err) {
+      setError(err.message);
+      await refresh();
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+  function downloadJournals(entries, title = "اليومية") {
+    return action(() =>
+      exportJournals(data, entries, {
+        title,
+        filename: "ghaith-journals-" + today() + ".xlsx",
+      }),
+    );
   }
   function newEntry() {
     setModal({
@@ -246,17 +368,9 @@ function App() {
     });
   }
   const rows = reportRows(data, filter);
-  const visibleEntries = data.entries
-    .filter(
-      (e) =>
-        (!filter.from || e.date >= filter.from) &&
-        (!filter.to || e.date <= filter.to) &&
-        (!filter.centerId ||
-          e.lines.some((l) => l.centerId === filter.centerId)) &&
-        (!filter.search ||
-          `${e.number} ${e.description}`.includes(filter.search)),
-    )
-    .sort((a, b) => b.number - a.number);
+  const visibleEntries = filterJournals(data, filter);
+  const allEntries = allJournals(data);
+  const currentJournal = allEntries.find((e) => e.id === journalId);
   const trialRows = rows.map((a) => {
     const ids = descendants(data.accounts, a.id);
     const items = rows.filter((r) => ids.has(r.id));
@@ -273,6 +387,7 @@ function App() {
     { debit: 0, credit: 0 },
   );
   async function exportRows() {
+    if (page === "entries") return downloadJournals(visibleEntries);
     await action(async () => {
       const title = pages.find((p) => p[0] === page)?.[1] || "تقرير";
       const subtitle = `الفترة: ${filter.from || "بداية التسجيل"} — ${filter.to || "حتى الآن"} · ${filter.accountId ? name(filter.accountId) : "جميع الحسابات"} · ${filter.centerId ? center(filter.centerId) : "جميع مراكز التكلفة"}`;
@@ -431,7 +546,12 @@ function App() {
       />
     );
   return (
-    <div className="app">
+    <div
+      className={
+        "app " +
+        (["entries", "journal"].includes(page) ? "journal-workspace" : "")
+      }
+    >
       <aside className={side ? "open" : ""}>
         <a className="brand" onClick={() => nav("dashboard")}>
           <BrandLogo className="sidebar-logo" />
@@ -466,7 +586,11 @@ function App() {
               <Menu />
             </button>
             المساحة المحاسبية <ChevronLeft size={14} />
-            <strong>{pages.find((p) => p[0] === page)?.[1]}</strong>
+            <strong>
+              {page === "journal"
+                ? "قيد يومية"
+                : pages.find((p) => p[0] === page)?.[1]}
+            </strong>
           </div>
           <div className="profile">
             <span className={"mode " + (!cloud ? "demo" : "")}>
@@ -491,7 +615,7 @@ function App() {
           </div>
         </header>
         <main>
-          {!["ledger", "trial", "income"].includes(page) && (
+          {!["ledger", "trial", "income", "journal"].includes(page) && (
             <div className="print-brand">
               <BrandLogo />
             </div>
@@ -500,6 +624,19 @@ function App() {
             <div className="demo-banner">
               <AlertCircle size={16} /> نسخة تجريبية: البيانات محفوظة في هذا
               المتصفح فقط. المشاركة والمرفقات تتطلب ربط Supabase.
+            </div>
+          )}
+          {cloud && version > 0 && data.journalWorkflowVersion !== 2 && (
+            <div className="error">
+              تحديث قاعدة البيانات مطلوب لتفعيل المسودات والحذف وتصفير القيود
+              القديمة.{" "}
+              <a
+                href="https://github.com/mostafaelramady05/Ghaith/blob/main/supabase/migrations/002_journal_workflow.sql"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                ملف التحديث
+              </a>
             </div>
           )}
           {error && (
@@ -516,89 +653,111 @@ function App() {
               {toast}
             </div>
           )}
-          <div className="page-heading">
-            <div>
-              <div className="eyebrow">
-                غيث /{" "}
-                {page === "dashboard"
-                  ? "لوحة التحكم"
-                  : ["ledger", "trial", "income"].includes(page)
-                    ? "التقارير المالية"
-                    : "الحسابات العامة"}
-              </div>
-              <h1>{pages.find((p) => p[0] === page)?.[1]}</h1>
-              <p>
-                {
+          {page !== "journal" && (
+            <div className="page-heading">
+              <div>
+                <div className="eyebrow">
+                  غيث /{" "}
+                  {page === "dashboard"
+                    ? "لوحة التحكم"
+                    : ["ledger", "trial", "income"].includes(page)
+                      ? "التقارير المالية"
+                      : "الحسابات العامة"}
+                </div>
+                <h1>
+                  {page === "journal"
+                    ? "قيد يومية"
+                    : pages.find((p) => p[0] === page)?.[1]}
+                </h1>
+                <p>
                   {
-                    dashboard: "كل ما تحتاجه لمتابعة حسابات نشاطك التعليمي.",
-                    entries:
-                      "إدارة وتنظيم جميع الحركات المحاسبية في مكان واحد.",
-                    accounts: "نظّم حساباتك المالية في شجرة واضحة ومرنة.",
-                    centers: "تابع إيرادات ومصروفات كل دورة أو مجموعة.",
-                    ledger: "تفاصيل حركة الحساب والرصيد خلال الفترة المحددة.",
-                    trial: "مراجعة أرصدة الحسابات وحركاتها المدينة والدائنة.",
-                    income: "متابعة الإيرادات والمصروفات وصافي نتائج النشاط.",
-                    audit:
-                      "سجل وقت التغييرات على البيانات باستخدام الحساب المشترك.",
-                  }[page]
-                }
-              </p>
-            </div>
-            <div className="actions">
-              {["entries", "accounts"].includes(page) && (
-                <button
-                  onClick={() => {
-                    setError("");
-                    setModal({
-                      kind: "import",
-                      mode: page === "accounts" ? "accounts" : "entries",
-                      value: {},
-                    });
-                  }}
-                >
-                  <Upload size={17} />
-                  استيراد Excel
-                </button>
-              )}
-              {["dashboard", "entries"].includes(page) ? (
-                <button className="primary" onClick={newEntry}>
-                  <Plus size={18} />
-                  إضافة قيد يومي
-                </button>
-              ) : ["accounts", "centers"].includes(page) ? (
-                <button
-                  className="primary"
-                  onClick={() =>
-                    setModal({
-                      kind: page === "accounts" ? "account" : "center",
-                      value: {
-                        id: crypto.randomUUID(),
-                        code: "",
-                        name: "",
-                        type: "asset",
-                        parentId: "",
-                      },
-                    })
+                    {
+                      dashboard: "كل ما تحتاجه لمتابعة حسابات نشاطك التعليمي.",
+                      entries:
+                        "إدارة وتنظيم جميع الحركات المحاسبية في مكان واحد.",
+                      accounts: "نظّم حساباتك المالية في شجرة واضحة ومرنة.",
+                      centers: "تابع إيرادات ومصروفات كل دورة أو مجموعة.",
+                      ledger: "تفاصيل حركة الحساب والرصيد خلال الفترة المحددة.",
+                      trial: "مراجعة أرصدة الحسابات وحركاتها المدينة والدائنة.",
+                      income: "متابعة الإيرادات والمصروفات وصافي نتائج النشاط.",
+                      audit:
+                        "سجل وقت التغييرات على البيانات باستخدام الحساب المشترك.",
+                    }[page]
                   }
-                >
-                  <Plus size={18} />
-                  إضافة {page === "accounts" ? "حساب" : "مركز تكلفة"}
-                </button>
-              ) : (
-                <>
-                  <button onClick={() => window.print()}>
-                    <Printer size={16} />
-                    طباعة
+                </p>
+              </div>
+              <div
+                className={
+                  "actions " +
+                  (page === "entries" ? "journal-generic-actions" : "")
+                }
+              >
+                {["entries", "accounts"].includes(page) && (
+                  <button
+                    onClick={() => {
+                      setError("");
+                      setModal({
+                        kind: "import",
+                        mode: page === "accounts" ? "accounts" : "entries",
+                        value: {},
+                      });
+                    }}
+                  >
+                    <Upload size={17} />
+                    استيراد Excel
                   </button>
-                  <button onClick={exportRows}>
-                    <Download size={16} />
-                    تصدير Excel
+                )}
+                {["dashboard", "entries"].includes(page) ? (
+                  <button className="primary" onClick={newEntry}>
+                    <Plus size={18} />
+                    إضافة قيد يومي
                   </button>
-                </>
-              )}
+                ) : ["accounts", "centers"].includes(page) ? (
+                  <button
+                    className="primary"
+                    onClick={() =>
+                      setModal({
+                        kind: page === "accounts" ? "account" : "center",
+                        value: {
+                          id: crypto.randomUUID(),
+                          code: "",
+                          name: "",
+                          type: "asset",
+                          parentId: "",
+                        },
+                      })
+                    }
+                  >
+                    <Plus size={18} />
+                    إضافة {page === "accounts" ? "حساب" : "مركز تكلفة"}
+                  </button>
+                ) : (
+                  <>
+                    <button onClick={() => window.print()}>
+                      <Printer size={16} />
+                      طباعة
+                    </button>
+                    <button onClick={exportRows}>
+                      <Download size={16} />
+                      تصدير Excel
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-          {page === "dashboard" ? (
+          )}
+          {page === "journal" && currentJournal ? (
+            <JournalDetail
+              entry={currentJournal}
+              data={data}
+              onBack={() => nav("entries")}
+              onEdit={editJournal}
+              onState={journalAction}
+              onLinks={saveLinks}
+              onExport={(e) => downloadJournals([e], "قيد يومية")}
+              busy={busy}
+            />
+          ) : page === "dashboard" ? (
             <>
               <div className="stats">
                 {[
@@ -635,7 +794,7 @@ function App() {
                   ],
                   [
                     "عدد القيود اليومية",
-                    data.entries.length,
+                    allEntries.filter((e) => e.status === "posted").length,
                     BookOpen,
                     "purple",
                   ],
@@ -668,7 +827,7 @@ function App() {
                   <EntryTable
                     documents={data.entryDocuments}
                     entries={visibleEntries.slice(0, 5)}
-                    open={(e) => setModal({ kind: "view", value: e })}
+                    open={openJournal}
                   />
                 </section>
                 <section className="card quick">
@@ -716,7 +875,7 @@ function App() {
             </>
           ) : (
             <>
-              {["entries", "ledger", "trial", "income"].includes(page) && (
+              {["ledger", "trial", "income"].includes(page) && (
                 <section className="card filters">
                   <div className="filter-title">
                     <Search size={17} />
@@ -857,23 +1016,117 @@ function App() {
                 </section>
               )}
               {page === "entries" && (
-                <section className="card">
-                  <div className="card-title">
-                    <h2>
-                      سجل القيود{" "}
-                      <span className="count">{visibleEntries.length}</span>
-                    </h2>
+                <>
+                  <div className="journal-toolbar">
+                    <button className="primary" onClick={newEntry}>
+                      <Plus size={17} />
+                      أضف قيد
+                    </button>
+                    <button
+                      onClick={() =>
+                        setModal({ kind: "import", mode: "entries", value: {} })
+                      }
+                    >
+                      <Upload size={16} />
+                      استيراد
+                    </button>
+                    <button
+                      disabled={busy}
+                      onClick={() =>
+                        downloadJournals(
+                          allEntries.filter((e) => e.status !== "deleted"),
+                        )
+                      }
+                    >
+                      <Download size={16} />
+                      تحميل كل القيود — Excel
+                    </button>
                     <button onClick={exportRows}>
-                      <Download size={15} />
-                      تصدير
+                      <Download size={16} />
+                      تصدير نتائج البحث
+                    </button>
+                    <button
+                      disabled={
+                        busy ||
+                        !visibleEntries.some((e) => e.status === "draft")
+                      }
+                      onClick={() =>
+                        action(async () => {
+                          const drafts = visibleEntries.filter(
+                            (e) => e.status === "draft",
+                          );
+                          if (
+                            !confirm(
+                              `ترحيل ${drafts.length} مسودة مطابقة للبحث وإضافتها للحسابات؟`,
+                            )
+                          )
+                            return;
+                          let next = data;
+                          for (const e of drafts) {
+                            try {
+                              next = changeJournalState(next, e.id, "post");
+                            } catch (err) {
+                              throw Error(
+                                `القيد ${e.description}: ${err.message}`,
+                              );
+                            }
+                          }
+                          await persist(next);
+                          setToast("تم ترحيل المسودات بنجاح");
+                        })
+                      }
+                    >
+                      ترحيل المسودات المطابقة (
+                      {
+                        visibleEntries.filter((e) => e.status === "draft")
+                          .length
+                      }
+                      )
+                    </button>
+                    <span className="draft-count">
+                      المسودات (
+                      {allEntries.filter((e) => e.status === "draft").length})
+                    </span>
+                  </div>
+                  <JournalFilters
+                    filter={filter}
+                    setFilter={setFilter}
+                    data={data}
+                  />
+                  <div className="journal-reset">
+                    <button
+                      className="danger"
+                      disabled={busy}
+                      onClick={() =>
+                        action(async () => {
+                          if (
+                            !confirm(
+                              "حذف جميع القيود والمسودات نهائيًا والبدء من الصفر؟ ستبقى شجرة الحسابات ومراكز التكلفة.",
+                            )
+                          )
+                            return;
+                          const next = resetJournals(data);
+                          await persist(next);
+                          await cleanupJournalFiles(
+                            next,
+                            allEntries.flatMap((e) => e.attachments || []),
+                          );
+                          setToast("تم حذف جميع القيود والمسودات");
+                        })
+                      }
+                    >
+                      حذف جميع القيود والبدء من جديد
                     </button>
                   </div>
-                  <EntryTable
-                    documents={data.entryDocuments}
+                  <JournalList
+                    key={JSON.stringify(filter)}
                     entries={visibleEntries}
-                    open={(e) => setModal({ kind: "view", value: e })}
+                    data={data}
+                    open={openJournal}
+                    onState={journalAction}
+                    busy={busy}
                   />
-                </section>
+                </>
               )}
               {page === "accounts" && (
                 <section className="card">
@@ -1119,12 +1372,11 @@ function App() {
                                 <button
                                   className="link"
                                   onClick={() =>
-                                    setModal({
-                                      kind: "view",
-                                      value: data.entries.find(
+                                    openJournal(
+                                      allEntries.find(
                                         (e) => e.id === r.entryId,
                                       ),
-                                    })
+                                    )
                                   }
                                 >
                                   #{r.number}
@@ -1356,7 +1608,7 @@ function App() {
                       summary.accountsOnly
                         ? "تمت إضافة شجرة الحسابات"
                         : summary.entries
-                          ? `تم استيراد ${summary.entries} قيد بنجاح`
+                          ? `تم استيراد ${summary.entries} ${summary.asDraft ? "مسودة" : "قيد مرحّل"} بنجاح`
                           : `تم استكمال روابط ${summary.linkUpdates} قيد`,
                     );
                   })
@@ -1388,37 +1640,44 @@ function App() {
                     setBusy(false);
                   }
                 }}
-                onSave={(entry, files) =>
+                onSave={(entry, files, post) =>
                   action(async () => {
-                    validateEntry(entry, data.accounts, data.centers);
-                    const attachments = [];
+                    if (post) validateEntry(entry, data.accounts, data.centers);
+                    else validateDraft(entry, data.accounts, data.centers);
+                    const uploaded = [];
                     try {
                       for (const file of files)
-                        attachments.push(await upload(file));
-                      await persist({
-                        ...data,
-                        entries: [
-                          ...data.entries,
-                          {
-                            ...entry,
-                            number:
-                              Math.max(
-                                0,
-                                ...data.entries.map((e) => e.number),
-                              ) + 1,
-                            attachments,
-                            createdAt: new Date().toISOString(),
-                          },
-                        ],
-                      });
-                    } catch (e) {
-                      if (cloud && attachments.length)
+                        uploaded.push(await upload(file));
+                      const next = saveJournal(
+                        data,
+                        {
+                          ...entry,
+                          attachments: [
+                            ...(entry.attachments || []),
+                            ...uploaded,
+                          ],
+                        },
+                        { post },
+                      );
+                      if (data.entryDocuments?.[entry.id])
+                        next.entryDocuments = {
+                          ...(next.entryDocuments || {}),
+                          [entry.id]: entry.documentLinks,
+                        };
+                      await persist(next);
+                      setModal(null);
+                      setToast(
+                        post
+                          ? "تم حفظ وترحيل القيد"
+                          : "تم حفظ المسودة — لا تؤثر في الحسابات",
+                      );
+                    } catch (err) {
+                      if (cloud && uploaded.length)
                         await client.storage
                           .from("attachments")
-                          .remove(attachments.map((a) => a.path));
-                      throw e;
+                          .remove(uploaded.map((a) => a.path));
+                      throw err;
                     }
-                    setModal(null);
                   })
                 }
               />
@@ -1691,7 +1950,7 @@ function EntryForm({
     [files, setFiles] = useState([]),
     [err, setErr] = useState(""),
     [linksText, setLinksText] = useState(
-      entryDocuments(entry)
+      entryDocuments(entry, savedDocuments)
         .map((d) => d.url)
         .join("\n"),
     );
@@ -1729,6 +1988,7 @@ function EntryForm({
               })),
             },
             files,
+            e.nativeEvent.submitter?.value === "post",
           );
         } catch (e) {
           setErr(e.message);
@@ -1753,14 +2013,17 @@ function EntryForm({
             ))}
           </details>
         )}
-        <DocumentsField
-          readOnly={readOnly}
-          links={entryDocuments(entry, savedDocuments)}
-          textValue={linksText}
-          onChange={setLinksText}
-          onSave={onSaveLinks}
-          busy={busy}
-        />
+        {(entry.importKey ||
+          entryDocuments(entry, savedDocuments).length > 0) && (
+          <DocumentsField
+            readOnly={readOnly}
+            links={entryDocuments(entry, savedDocuments)}
+            textValue={linksText}
+            onChange={setLinksText}
+            onSave={onSaveLinks}
+            busy={busy}
+          />
+        )}
         <div className="entry-top">
           <Field label="تاريخ القيد">
             <input
@@ -1804,22 +2067,16 @@ function EntryForm({
                   <td>{i + 1}</td>
                   <td>
                     <select
-                      required
                       disabled={readOnly}
                       value={l.accountId}
                       onChange={(e) => change(i, "accountId", e.target.value)}
                     >
                       <option value="">اختر الحساب</option>
-                      {data.accounts
-                        .filter(
-                          (a) =>
-                            !data.accounts.some((b) => b.parentId === a.id),
-                        )
-                        .map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.code} — {a.name}
-                          </option>
-                        ))}
+                      {postingAccounts(data.accounts).map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.code} — {a.name}
+                        </option>
+                      ))}
                     </select>
                   </td>
                   <td>
@@ -1942,11 +2199,22 @@ function EntryForm({
       </div>
       {!readOnly && (
         <div className="modal-footer">
-          <span className="muted">يُحفظ القيد بكامل أطرافه في عملية واحدة</span>
-          <button className="primary" disabled={busy}>
-            <Save size={17} />
-            {busy ? "جاري الحفظ…" : "حفظ القيد"}
-          </button>
+          <span className="muted">المسودة لا تؤثر في الحسابات حتى ترحيلها</span>
+          <div className="entry-save-actions">
+            <button type="submit" name="outcome" value="draft" disabled={busy}>
+              <Save size={17} />
+              {busy ? "جاري الحفظ…" : "حفظ مسودة"}
+            </button>
+            <button
+              type="submit"
+              name="outcome"
+              value="post"
+              className="primary"
+              disabled={busy}
+            >
+              حفظ وترحيل
+            </button>
+          </div>
         </div>
       )}
     </form>

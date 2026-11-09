@@ -15,6 +15,18 @@ export function cents(v) {
     throw Error("أدخل مبلغًا موجبًا بحد أقصى منزلتين عشريتين");
   return Math.round(Number(v) * 100);
 }
+export function postingAccounts(accounts) {
+  return accounts.filter(
+    (a) => Boolean(a.parentId) && !accounts.some((x) => x.parentId === a.id),
+  );
+}
+export function postedEntries(data) {
+  return data.entries.filter(
+    (e) =>
+      (data.entryLifecycle?.[e.id]?.status || e.status || "posted") ===
+      "posted",
+  );
+}
 export function validateEntry(e, accounts, centers) {
   if (!e.date || !/^\d{4}-\d{2}-\d{2}$/.test(e.date) || !e.description?.trim())
     throw Error("التاريخ وبيان القيد مطلوبان");
@@ -25,7 +37,9 @@ export function validateEntry(e, accounts, centers) {
     if (
       !accounts.some(
         (a) =>
-          a.id === l.accountId && !accounts.some((x) => x.parentId === a.id),
+          a.id === l.accountId &&
+          Boolean(a.parentId) &&
+          !accounts.some((x) => x.parentId === a.id),
       )
     )
       throw Error("اختر حسابًا فرعيًا صالحًا لكل سطر");
@@ -69,7 +83,7 @@ export function reportRows(
       let opening = 0,
         debit = 0,
         credit = 0;
-      for (const e of data.entries) {
+      for (const e of postedEntries(data)) {
         if (to && e.date > to) continue;
         for (const l of e.lines) {
           if (l.accountId !== a.id || (centerId && l.centerId !== centerId))
@@ -96,7 +110,7 @@ export function ledger(data, filter) {
     : new Set();
   let balance = 0;
   const rows = [];
-  for (const e of [...data.entries].sort(
+  for (const e of [...postedEntries(data)].sort(
     (a, b) => a.date.localeCompare(b.date) || a.number - b.number,
   )) {
     if (filter.to && e.date > filter.to) continue;
