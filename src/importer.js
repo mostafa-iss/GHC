@@ -1,3 +1,5 @@
+import { mergeDocuments, entryDocuments } from "./documents.js";
+import { brandedWorkbook, addReportTable, saveWorkbook } from "./exports.js";
 import { types, validateEntry } from "./accounting.js";
 export const normalizeName = (value) =>
   String(value ?? "")
@@ -301,6 +303,18 @@ export async function readWorkbook(input) {
         { length: Math.min(sheet.columnCount, 100) },
         (_, i) => cellValue(row.getCell(i + 1)),
       );
+      rows[n - 1].hyperlinks = Array.from(
+        { length: Math.min(sheet.columnCount, 100) },
+        (_, i) => {
+          const c = row.getCell(i + 1);
+          if (c.hyperlink) return c.hyperlink;
+          const formula = c.value?.formula;
+          const match =
+            typeof formula === "string" &&
+            /^HYPERLINK\(\s*"((?:[^"]|"")*)"/i.exec(formula);
+          return match ? match[1].replaceAll('""', '"') : null;
+        },
+      );
     });
     sheets[sheet.name] = rows;
   }
@@ -348,6 +362,15 @@ export function extractWorkbook(sheets) {
   if (cols.date < 0) throw Error("عمود التاريخ مطلوب");
   const rows = allRows.slice(headerIndex + 1).map((values, i) => ({
     row: i + headerIndex + 2,
+    documentLinks: mergeDocuments(
+      [
+        values?.hyperlinks?.[cols.reference],
+        typeof values?.[cols.reference] === "string" &&
+        /^https:\/\//i.test(values[cols.reference])
+          ? values[cols.reference]
+          : null,
+      ].filter(Boolean),
+    ),
     ...Object.fromEntries(
       Object.entries(cols).map(([key, j]) => [
         key,
@@ -509,6 +532,7 @@ export async function importPlan(extracted, data, overrides = {}) {
           description: String(r.description ?? "").trim(),
           debit: r.d.cents,
           credit: r.c.cents,
+          documentLinks: r.documentLinks || [],
           reference: String(r.reference ?? ""),
           notes: String(r.notes ?? ""),
           sourceRow: r.row,
@@ -524,6 +548,7 @@ export async function importPlan(extracted, data, overrides = {}) {
         ].join(" / "),
         lines,
         attachments: [],
+        documentLinks: mergeDocuments(...lines.map((l) => l.documentLinks)),
         sourceRows,
         sourceSheet: extracted.sheetName,
         sourceNumber: String(group[0].number ?? ""),
@@ -574,6 +599,18 @@ export async function importPlan(extracted, data, overrides = {}) {
     errors: groupsOut.filter((g) => g.status === "error"),
     duplicates: groupsOut.filter((g) => g.status === "duplicate"),
     warnings: groupsOut.filter((g) => g.warnings.length),
+    linked: groupsOut.filter((g) => g.entry?.documentLinks?.length),
+    linkUpdates: groupsOut.filter((g) => {
+      if (g.status !== "duplicate") return false;
+      const existing = data.entries.find((e) => e.importKey === g.key);
+      const current = entryDocuments(
+        existing,
+        data.entryDocuments?.[existing.id],
+      );
+      return (
+        mergeDocuments(current, g.entry?.documentLinks).length > current.length
+      );
+    }),
   };
 }
 export function applyImport(
@@ -603,47 +640,43 @@ export function applyImport(
       entries.push(e);
       seen.add(g.key);
     }
+  const entryDocumentsMap = { ...(data.entryDocuments || {}) };
+  if (!accountsOnly)
+    for (const g of plan.linkUpdates || []) {
+      const existing = data.entries.find((e) => e.importKey === g.key);
+      entryDocumentsMap[existing.id] = mergeDocuments(
+        entryDocuments(existing, entryDocumentsMap[existing.id]),
+        g.entry.documentLinks,
+      );
+    }
   return {
     ...data,
+    ...(Object.keys(entryDocumentsMap).length
+      ? { entryDocuments: entryDocumentsMap }
+      : {}),
     accounts: plan.chart.accounts,
     entries: [...data.entries, ...entries],
   };
 }
 export async function downloadChart(plan) {
-  const mod = await import("exceljs");
-  const ExcelJS = mod.default || mod;
-  const book = new ExcelJS.Workbook();
-  const sheet = book.addWorksheet("شجرة الحسابات", {
-    views: [{ rightToLeft: true, state: "frozen", ySplit: 1 }],
+  const { book, sheet } = await brandedWorkbook({
+    title: "شجرة الحسابات",
+    subtitle: "دليل الحسابات والتصنيف والطبيعة المحاسبية",
   });
-  sheet.columns = [
-    { header: "الكود", key: "code", width: 16 },
-    { header: "الحساب", key: "name", width: 48 },
-    { header: "التصنيف", key: "type", width: 20 },
-    { header: "الحساب الرئيسي", key: "parent", width: 40 },
-    { header: "الطبيعة", key: "normal", width: 15 },
-  ];
-  for (const a of plan.chart.accounts)
-    sheet.addRow({
-      code: a.code,
-      name: a.name,
-      type: types[a.type],
-      parent: plan.chart.accounts.find((x) => x.id === a.parentId)?.name || "",
-      normal:
-        (a.normalBalance ||
-          (["asset", "expense"].includes(a.type) ? "debit" : "credit")) ===
-        "debit"
-          ? "مدين"
-          : "دائن",
-    });
-  sheet.getRow(1).font = { bold: true };
-  const b = new Blob([await book.xlsx.writeBuffer()], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const url = URL.createObjectURL(b);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "شجرة الحسابات المكودة.xlsx";
-  a.click();
-  URL.revokeObjectURL(url);
+  addReportTable(
+    sheet,
+    ["الكود", "الحساب", "التصنيف", "الحساب الرئيسي", "الطبيعة"],
+    plan.chart.accounts.map((a) => [
+      a.code,
+      a.name,
+      types[a.type],
+      plan.chart.accounts.find((x) => x.id === a.parentId)?.name || "",
+      (a.normalBalance ||
+        (["asset", "expense"].includes(a.type) ? "debit" : "credit")) ===
+      "debit"
+        ? "مدين"
+        : "دائن",
+    ]),
+  );
+  await saveWorkbook(book, "شجرة الحسابات المكودة.xlsx");
 }

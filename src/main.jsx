@@ -24,6 +24,8 @@ import {
   X,
   Save,
   Upload,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import {
   types,
@@ -43,6 +45,12 @@ import {
   upload,
   openAttachment,
 } from "./store";
+import BrandLogo from "./BrandLogo";
+import DocumentsField from "./DocumentsField";
+import { entryDocuments, parseDocumentLinks } from "./documents";
+import { logoBytes } from "./brand";
+import { exportReport } from "./exports";
+import { REMEMBER_KEY } from "./authStorage";
 import ImportPanel from "./ImportPanel";
 import { zipSync, strToU8 } from "fflate";
 import "@fontsource/cairo/400.css";
@@ -190,6 +198,7 @@ function App() {
             await file.arrayBuffer(),
           );
         }
+      files["ghaith-logo.png"] = await logoBytes();
       const blob = new Blob([zipSync(files)]);
       const u = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -263,71 +272,154 @@ function App() {
     (t, r) => ({ debit: t.debit + r.debit, credit: t.credit + r.credit }),
     { debit: 0, credit: 0 },
   );
-  function exportRows() {
-    let values;
-    if (page === "entries")
-      values = [
-        ["الرقم", "التاريخ", "البيان", "المدين", "الدائن"],
-        ...visibleEntries.map((e) => [
+  async function exportRows() {
+    await action(async () => {
+      const title = pages.find((p) => p[0] === page)?.[1] || "تقرير";
+      const subtitle = `الفترة: ${filter.from || "بداية التسجيل"} — ${filter.to || "حتى الآن"} · ${filter.accountId ? name(filter.accountId) : "جميع الحسابات"} · ${filter.centerId ? center(filter.centerId) : "جميع مراكز التكلفة"}`;
+      let headers, values;
+      if (page === "entries") {
+        headers = [
+          "رقم القيد",
+          "التاريخ",
+          "البيان",
+          "مدين (SAR)",
+          "دائن (SAR)",
+          "روابط المستندات",
+        ];
+        values = visibleEntries.map((e) => [
           e.number,
           e.date,
           e.description,
-          money(e.lines.reduce((s, l) => s + l.debit, 0)),
-          money(e.lines.reduce((s, l) => s + l.credit, 0)),
-        ]),
-      ];
-    else if (page === "ledger")
-      values = [
-        ["التاريخ", "رقم القيد", "البيان", "مدين", "دائن", "الرصيد"],
-        ...ledger(data, filter).map((r) => [
-          r.date,
-          r.number,
-          r.description,
-          money(r.debit),
-          money(r.credit),
-          money(r.balance),
-        ]),
-      ];
-    else
-      values = [
-        ["الكود", "الحساب", "رصيد أول المدة", "مدين", "دائن", "الرصيد"],
-        ...rows
-          .filter(
-            (r) => page !== "income" || ["revenue", "expense"].includes(r.type),
-          )
-          .map((r) => [
-            r.code,
-            r.name,
-            money(r.opening),
-            money(r.debit),
-            money(r.credit),
-            money(r.closing),
+          e.lines.reduce((s, l) => s + l.debit, 0) / 100,
+          e.lines.reduce((s, l) => s + l.credit, 0) / 100,
+          entryDocuments(e, data.entryDocuments?.[e.id])
+            .map((d) => d.url)
+            .join("\n"),
+        ]);
+      } else if (page === "ledger") {
+        if (!filter.accountId) throw Error("اختر حسابًا قبل التصدير");
+        headers = [
+          "التاريخ",
+          "رقم القيد",
+          "البيان",
+          "مدين (SAR)",
+          "دائن (SAR)",
+          "الرصيد (SAR)",
+        ];
+        const opening = rows.reduce((s, r) => s + r.opening, 0);
+        values = [
+          ["", "", "رصيد أول المدة", 0, 0, opening / 100],
+          ...ledger(data, filter).map((r) => [
+            r.date,
+            r.number,
+            r.description,
+            r.debit / 100,
+            r.credit / 100,
+            r.balance / 100,
           ]),
-      ];
-    const csv =
-      "\ufeff" +
-      values
-        .map((r) =>
-          r
-            .map(
-              (v) =>
-                '"' +
-                String(v)
-                  .replace(/^[=+@-]/, "'$&")
-                  .replaceAll('"', '""') +
-                '"',
-            )
-            .join(","),
-        )
-        .join("\r\n");
-    const url = URL.createObjectURL(
-      new Blob([csv], { type: "text/csv;charset=utf-8" }),
-    );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ghaith-${page}-${today()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+          [
+            "",
+            "",
+            "الإجمالي",
+            totals.debit / 100,
+            totals.credit / 100,
+            rows.reduce((s, r) => s + r.closing, 0) / 100,
+          ],
+        ];
+      } else if (page === "income") {
+        headers = ["كود الحساب", "الحساب / البيان", "القيمة (SAR)"];
+        values = [];
+        for (const type of ["revenue", "expense"]) {
+          values.push(["", types[type], ""]);
+          for (const r of rows.filter(
+            (r) =>
+              r.type === type &&
+              !data.accounts.some((a) => a.parentId === r.id),
+          ))
+            values.push([
+              r.code,
+              r.name,
+              (type === "revenue" ? r.credit - r.debit : r.debit - r.credit) /
+                100,
+            ]);
+          values.push([
+            "",
+            "إجمالي " + types[type],
+            rows
+              .filter((r) => r.type === type)
+              .reduce(
+                (s, r) =>
+                  s +
+                  (type === "revenue"
+                    ? r.credit - r.debit
+                    : r.debit - r.credit),
+                0,
+              ) / 100,
+          ]);
+        }
+        values.push([
+          "",
+          "صافي الربح / الخسارة",
+          rows.reduce(
+            (s, r) =>
+              s +
+              (["revenue", "expense"].includes(r.type)
+                ? r.credit - r.debit
+                : 0),
+            0,
+          ) / 100,
+        ]);
+      } else {
+        headers = [
+          "الكود",
+          "الحساب",
+          "رصيد أول المدة — مدين",
+          "رصيد أول المدة — دائن",
+          "حركة الفترة — مدين",
+          "حركة الفترة — دائن",
+          "رصيد آخر المدة — مدين",
+          "رصيد آخر المدة — دائن",
+        ];
+        values = trialRows.map((r) => [
+          r.code,
+          r.name,
+          Math.max(r.opening, 0) / 100,
+          Math.max(-r.opening, 0) / 100,
+          r.debit / 100,
+          r.credit / 100,
+          Math.max(r.closing, 0) / 100,
+          Math.max(-r.closing, 0) / 100,
+        ]);
+        values.push([
+          "",
+          "الإجمالي",
+          ...Array.from(
+            { length: 6 },
+            (_, i) =>
+              rows.reduce(
+                (s, r) =>
+                  s +
+                  [
+                    Math.max(r.opening, 0),
+                    Math.max(-r.opening, 0),
+                    r.debit,
+                    r.credit,
+                    Math.max(r.closing, 0),
+                    Math.max(-r.closing, 0),
+                  ][i],
+                0,
+              ) / 100,
+          ),
+        ]);
+      }
+      await exportReport({
+        title,
+        subtitle,
+        headers,
+        rows: values,
+        filename: `ghaith-${page}-${today()}.xlsx`,
+      });
+    });
   }
   if (loading) return <div className="loading">جاري التحميل…</div>;
   if (!session)
@@ -342,18 +434,8 @@ function App() {
     <div className="app">
       <aside className={side ? "open" : ""}>
         <a className="brand" onClick={() => nav("dashboard")}>
-          <span className="brand-mark">غ</span>
-          <div>
-            غيث<span>النظام المحاسبي</span>
-          </div>
+          <BrandLogo className="sidebar-logo" />
         </a>
-        <div className="workspace">
-          <span className="workspace-icon">غ</span>
-          <div>
-            غيث للتعليم<small>المساحة المحاسبية</small>
-          </div>
-          <span className="dot" />
-        </div>
         <p className="nav-label">القائمة الرئيسية</p>
         <nav>
           {pages.map(([id, label, Icon], i) => (
@@ -375,13 +457,6 @@ function App() {
             <Download size={16} />
             تنزيل نسخة احتياطية
           </button>
-          <div className="currency">
-            ر.س{" "}
-            <span>
-              الريال السعودي<small>العملة الأساسية</small>
-            </span>
-          </div>
-          <p>غيث للمحاسبة · الإصدار الأول</p>
         </div>
       </aside>
       <div className="main">
@@ -406,7 +481,7 @@ function App() {
               title="تسجيل الخروج"
               onClick={() =>
                 action(async () => {
-                  if (cloud) await client.auth.signOut();
+                  if (cloud) await client.auth.signOut({ scope: "local" });
                   setSession(null);
                 })
               }
@@ -416,6 +491,11 @@ function App() {
           </div>
         </header>
         <main>
+          {!["ledger", "trial", "income"].includes(page) && (
+            <div className="print-brand">
+              <BrandLogo />
+            </div>
+          )}
           {!cloud && (
             <div className="demo-banner">
               <AlertCircle size={16} /> نسخة تجريبية: البيانات محفوظة في هذا
@@ -512,7 +592,7 @@ function App() {
                   </button>
                   <button onClick={exportRows}>
                     <Download size={16} />
-                    تصدير Excel (CSV)
+                    تصدير Excel
                   </button>
                 </>
               )}
@@ -586,6 +666,7 @@ function App() {
                     </button>
                   </div>
                   <EntryTable
+                    documents={data.entryDocuments}
                     entries={visibleEntries.slice(0, 5)}
                     open={(e) => setModal({ kind: "view", value: e })}
                   />
@@ -788,6 +869,7 @@ function App() {
                     </button>
                   </div>
                   <EntryTable
+                    documents={data.entryDocuments}
                     entries={visibleEntries}
                     open={(e) => setModal({ kind: "view", value: e })}
                   />
@@ -1225,9 +1307,6 @@ function App() {
               )}
             </>
           )}
-          <footer>
-            غيث للنظام المحاسبي <span>جميع المبالغ بالريال السعودي · SAR</span>
-          </footer>
         </main>
       </div>
       {modal && (
@@ -1276,7 +1355,9 @@ function App() {
                     setToast(
                       summary.accountsOnly
                         ? "تمت إضافة شجرة الحسابات"
-                        : `تم استيراد ${summary.entries} قيد بنجاح`,
+                        : summary.entries
+                          ? `تم استيراد ${summary.entries} قيد بنجاح`
+                          : `تم استكمال روابط ${summary.linkUpdates} قيد`,
                     );
                   })
                 }
@@ -1287,6 +1368,26 @@ function App() {
                 data={data}
                 readOnly={modal.kind === "view"}
                 busy={busy}
+                savedDocuments={data.entryDocuments?.[modal.value.id]}
+                onSaveLinks={async (links) => {
+                  setError("");
+                  setBusy(true);
+                  try {
+                    await persist({
+                      ...data,
+                      entryDocuments: {
+                        ...(data.entryDocuments || {}),
+                        [modal.value.id]: links,
+                      },
+                    });
+                  } catch (e) {
+                    setError(e.message);
+                    await refresh();
+                    throw e;
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
                 onSave={(entry, files) =>
                   action(async () => {
                     validateEntry(entry, data.accounts, data.centers);
@@ -1425,7 +1526,7 @@ function Empty({
     </div>
   );
 }
-function EntryTable({ entries, open }) {
+function EntryTable({ entries, open, documents = {} }) {
   return !entries.length ? (
     <Empty />
   ) : (
@@ -1457,7 +1558,20 @@ function EntryTable({ entries, open }) {
               <td>
                 <span className="badge">متوازن</span>
               </td>
-              <td>{e.attachments?.length || "—"}</td>
+              <td>
+                {entryDocuments(e, documents[e.id]).length > 0 ? (
+                  <button className="link" onClick={() => open(e)}>
+                    {entryDocuments(e, documents[e.id]).length} رابط مستند
+                  </button>
+                ) : null}
+                {e.attachments?.length > 0 ? (
+                  <span> · {e.attachments.length} مرفق</span>
+                ) : null}
+                {!entryDocuments(e, documents[e.id]).length &&
+                !e.attachments?.length
+                  ? "—"
+                  : null}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -1468,7 +1582,7 @@ function EntryTable({ entries, open }) {
 function ReportTitle({ title, filter }) {
   return (
     <div className="report-title">
-      <span className="report-logo">غيث</span>
+      <BrandLogo className="report-logo" />
       <h2>{title}</h2>
       <p>
         {filter.from || "بداية التسجيل"} — {filter.to || "حتى الآن"} · العملة:
@@ -1564,10 +1678,23 @@ function MasterForm({ kind, initial, data, onSave, busy }) {
     </form>
   );
 }
-function EntryForm({ entry, data, readOnly, busy, onSave }) {
+function EntryForm({
+  entry,
+  data,
+  readOnly,
+  busy,
+  onSave,
+  savedDocuments,
+  onSaveLinks,
+}) {
   const [v, setV] = useState(readOnly ? entry : { ...entry }),
     [files, setFiles] = useState([]),
-    [err, setErr] = useState("");
+    [err, setErr] = useState(""),
+    [linksText, setLinksText] = useState(
+      entryDocuments(entry)
+        .map((d) => d.url)
+        .join("\n"),
+    );
   const lines = readOnly
     ? v.lines.map((l) => ({
         ...l,
@@ -1594,6 +1721,7 @@ function EntryForm({ entry, data, readOnly, busy, onSave }) {
           onSave(
             {
               ...v,
+              documentLinks: parseDocumentLinks(linksText),
               lines: v.lines.map((l) => ({
                 ...l,
                 debit: cents(l.debit || "0"),
@@ -1625,6 +1753,14 @@ function EntryForm({ entry, data, readOnly, busy, onSave }) {
             ))}
           </details>
         )}
+        <DocumentsField
+          readOnly={readOnly}
+          links={entryDocuments(entry, savedDocuments)}
+          textValue={linksText}
+          onChange={setLinksText}
+          onSave={onSaveLinks}
+          busy={busy}
+        />
         <div className="entry-top">
           <Field label="تاريخ القيد">
             <input
@@ -1819,49 +1955,100 @@ function EntryForm({ entry, data, readOnly, busy, onSave }) {
 function Login({ onDemo, onError, error }) {
   const [user, setUser] = useState("ghaith"),
     [password, setPassword] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [showPassword, setShowPassword] = useState(false),
+    [remember, setRemember] = useState(
+      localStorage.getItem(REMEMBER_KEY) !== "false",
+    ),
+    [notice, setNotice] = useState("");
   return (
     <div className="login">
       <div className="login-card">
-        <div className="login-logo">
-          غيث<span>النظام المحاسبي</span>
-        </div>
-        <h1>أهلًا بعودتك</h1>
-        <p>مساحتك البسيطة لإدارة حسابات نشاطك التعليمي</p>
-        {error && <div className="error">{error}</div>}
+        <BrandLogo className="login-logo" />
+        <h1>سجّل الدخول إلى حسابك</h1>
+        {error && (
+          <div className="error" role="alert">
+            {error}
+          </div>
+        )}
+        {notice && (
+          <div className="login-notice" role="status">
+            {notice}
+          </div>
+        )}
         {cloud ? (
           <form
             onSubmit={async (e) => {
               e.preventDefault();
               setBusy(true);
-              const { error } = await client.auth.signInWithPassword({
-                email: user.includes("@") ? user : `${user}@ghaith.local`,
-                password,
-              });
-              if (error)
-                onError(
-                  "تعذر الدخول. تحقق من بيانات الحساب أو إعدادات الخدمة.",
-                );
-              setBusy(false);
+              onError("");
+              localStorage.setItem(REMEMBER_KEY, String(remember));
+              try {
+                const { error } = await client.auth.signInWithPassword({
+                  email: user.includes("@") ? user : `${user}@ghaith.local`,
+                  password,
+                });
+                if (error)
+                  onError("تعذر الدخول. تحقق من اسم المستخدم وكلمة المرور.");
+              } catch {
+                onError("تعذر الاتصال. حاول مرة أخرى.");
+              } finally {
+                setBusy(false);
+              }
             }}
           >
-            <Field label="اسم المستخدم">
+            <Field label="اسم المستخدم أو البريد الإلكتروني">
               <input
                 autoComplete="username"
                 required
+                placeholder="اسم المستخدم أو البريد الإلكتروني"
                 value={user}
                 onChange={(e) => setUser(e.target.value)}
               />
             </Field>
-            <Field label="كلمة المرور">
-              <input
-                autoComplete="current-password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </Field>
+            <div className="password-field">
+              <Field label="كلمة المرور">
+                <input
+                  autoComplete="current-password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  placeholder="كلمة المرور"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </Field>
+              <button
+                className="password-toggle"
+                type="button"
+                aria-label={
+                  showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"
+                }
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </div>
+            <div className="login-options">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                />
+                تذكرني
+              </label>
+              <button
+                className="link"
+                type="button"
+                onClick={() =>
+                  setNotice(
+                    "لتغيير كلمة مرور الحساب المشترك، تواصل مع مسؤول النظام.",
+                  )
+                }
+              >
+                نسيت كلمة المرور؟
+              </button>
+            </div>
             <button className="primary" disabled={busy}>
               {busy ? "جاري الدخول…" : "تسجيل الدخول"}
             </button>
@@ -1869,15 +2056,13 @@ function Login({ onDemo, onError, error }) {
         ) : (
           <>
             <div className="demo-note">
-              الربط السحابي لم يُفعّل بعد. يمكنك استكشاف النظام ببيانات تجريبية
-              محفوظة في متصفحك.
+              نسخة تجريبية محلية؛ لا تحتوي على بيانات الحساب السحابي.
             </div>
             <button className="primary" onClick={onDemo}>
               استكشاف النسخة التجريبية <ChevronLeft size={17} />
             </button>
           </>
         )}
-        <small>الحسابات العامة · مراكز التكلفة · التقارير المالية</small>
       </div>
     </div>
   );

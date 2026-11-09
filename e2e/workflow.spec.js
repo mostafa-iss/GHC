@@ -52,11 +52,32 @@ test("Arabic accounting workflow: center, balanced journal, reports, persistence
   await expect(page.locator("tfoot")).toContainText("1,250.50");
   await page.getByRole("button", { name: "قائمة الدخل", exact: true }).click();
   await expect(page.locator(".net-income")).toContainText("1,250.50");
+  await expect(page.locator(".report-title img")).toBeVisible();
+  const reportDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "تصدير Excel", exact: true }).click();
+  const report = await reportDownload;
+  expect(report.suggestedFilename()).toContain(".xlsx");
+  const reportZip = unzipSync(readFileSync(await report.path()));
+  expect(
+    Object.keys(reportZip).some((k) => k.startsWith("xl/media/")),
+  ).toBeTruthy();
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".report-title img")).toBeVisible();
+  await page.screenshot({
+    path: "/workspace/artifacts/ghaith-income-print.png",
+    fullPage: true,
+  });
+  await page.emulateMedia({ media: "screen" });
+
   await page
     .getByRole("button", { name: "ميزان المراجعة", exact: true })
     .click();
   await expect(page.locator("tfoot")).toContainText("1,250.50");
   await page.getByRole("button", { name: "نظرة عامة", exact: true }).click();
+  await expect(page.getByText("العملة الأساسية", { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(page.locator("footer")).toHaveCount(0);
   await page.screenshot({ path: "/tmp/ghaith-desktop.png", fullPage: true });
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "تنزيل نسخة احتياطية" }).click();

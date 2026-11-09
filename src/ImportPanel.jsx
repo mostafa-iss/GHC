@@ -90,7 +90,8 @@ export default function ImportPanel({
     !busy &&
     (mode === "accounts"
       ? plan.chart.added > 0
-      : plan.ready.length > 0 && (!plan.errors.length || partial));
+      : (plan.ready.length > 0 || plan.linkUpdates.length > 0) &&
+        (!plan.errors.length || partial));
   return (
     <div className="import-panel">
       <div className="import-notice">
@@ -161,6 +162,13 @@ export default function ImportPanel({
               <strong>{plan.duplicates.length}</strong>قيد سبق استيراده
             </span>
           </div>
+          {plan.linked.length > 0 && (
+            <div className="import-notice">
+              روابط المستندات موجودة في {plan.linked.length} مجموعة قيود.{" "}
+              {plan.linkUpdates.length > 0 &&
+                `سيتم استكمال روابط ${plan.linkUpdates.length} قيد محفوظ بدون تكرار قيوده أو تغيير مبالغه.`}
+            </div>
+          )}
           <details
             className="import-details"
             open={mode === "accounts" || plan.chart.issues.length > 0}
@@ -261,6 +269,7 @@ export default function ImportPanel({
                       <th>البيان</th>
                       <th>مدين</th>
                       <th>دائن</th>
+                      <th>روابط المستندات</th>
                       <th>النتيجة</th>
                     </tr>
                   </thead>
@@ -274,6 +283,20 @@ export default function ImportPanel({
                           <td>{g.entry?.description || "سطر غير مكتمل"}</td>
                           <td className="numeric">{money(g.debit)}</td>
                           <td className="numeric">{money(g.credit)}</td>
+                          <td>
+                            <div className="document-chips">
+                              {g.entry?.documentLinks?.map((d, i) => (
+                                <a
+                                  key={d.url}
+                                  href={d.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  مستند {i + 1}
+                                </a>
+                              ))}
+                            </div>
+                          </td>
                           <td>
                             {g.errors.length
                               ? g.errors.join("؛ ")
@@ -335,6 +358,7 @@ export default function ImportPanel({
                     accountsOnly: mode === "accounts",
                     entries: next.entries.length - data.entries.length,
                     accounts: plan.chart.added,
+                    linkUpdates: plan.linkUpdates.length,
                   });
                 } catch (e) {
                   setError(e.message);
@@ -346,13 +370,15 @@ export default function ImportPanel({
                 ? "جاري الحفظ…"
                 : mode === "accounts"
                   ? "تأكيد إضافة الشجرة"
-                  : `تأكيد استيراد ${plan.ready.length} قيد`}
+                  : plan.ready.length || !plan.linkUpdates.length
+                    ? `تأكيد استيراد ${plan.ready.length} قيد`
+                    : `حفظ روابط ${plan.linkUpdates.length} قيد`}
             </button>
           </div>
           <p className="muted">
             القيود الموجودة لا تُحذف. إعادة استيراد نفس القيود تتجاوز ما سبق
-            استيراده. الروابط والملاحظات في الشيت تُحفظ كنصوص، ولا تتحول
-            تلقائيًا إلى مرفقات.
+            استيراده. روابط Drive تظهر كروابط لفتح المستندات، والملاحظات محفوظة.
+            الملفات تظل في Drive بصلاحياتها الأصلية.
           </p>
         </>
       )}

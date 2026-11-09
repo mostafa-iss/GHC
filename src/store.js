@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { authStorage } from "./authStorage";
 import { seed } from "./accounting";
 const projectUrl = (import.meta.env.VITE_SUPABASE_URL || "")
   .trim()
@@ -8,7 +9,9 @@ export const cloud = Boolean(
   projectUrl && import.meta.env.VITE_SUPABASE_ANON_KEY,
 );
 export const client = cloud
-  ? createClient(projectUrl, import.meta.env.VITE_SUPABASE_ANON_KEY)
+  ? createClient(projectUrl, import.meta.env.VITE_SUPABASE_ANON_KEY, {
+      auth: { storage: authStorage },
+    })
   : null;
 const KEY = "ghaith-demo-v1";
 export async function readData() {
