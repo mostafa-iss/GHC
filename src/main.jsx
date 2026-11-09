@@ -23,6 +23,7 @@ import {
   Scale,
   X,
   Save,
+  Upload,
 } from "lucide-react";
 import {
   types,
@@ -42,6 +43,7 @@ import {
   upload,
   openAttachment,
 } from "./store";
+import ImportPanel from "./ImportPanel";
 import { zipSync, strToU8 } from "fflate";
 import "@fontsource/cairo/400.css";
 import "@fontsource/cairo/600.css";
@@ -463,6 +465,21 @@ function App() {
               </p>
             </div>
             <div className="actions">
+              {["entries", "accounts"].includes(page) && (
+                <button
+                  onClick={() => {
+                    setError("");
+                    setModal({
+                      kind: "import",
+                      mode: page === "accounts" ? "accounts" : "entries",
+                      value: {},
+                    });
+                  }}
+                >
+                  <Upload size={17} />
+                  استيراد Excel
+                </button>
+              )}
               {["dashboard", "entries"].includes(page) ? (
                 <button className="primary" onClick={newEntry}>
                   <Plus size={18} />
@@ -793,6 +810,7 @@ function App() {
                           <th>اسم الحساب</th>
                           <th>التصنيف</th>
                           <th>الحساب الرئيسي</th>
+                          <th>الطبيعة</th>
                           <th>الإجراءات</th>
                         </tr>
                       </thead>
@@ -1216,7 +1234,8 @@ function App() {
         <div className="modal-backdrop">
           <section
             className={
-              "modal " + (["entry", "view"].includes(modal.kind) ? "wide" : "")
+              "modal " +
+              (["entry", "view", "import"].includes(modal.kind) ? "wide" : "")
             }
             role="dialog"
             aria-modal="true"
@@ -1227,6 +1246,7 @@ function App() {
                 <h2>
                   {
                     {
+                      import: "استيراد القيود وشجرة الحسابات",
                       entry: "إضافة قيد يومي",
                       view: `قيد يومي #${modal.value.number}`,
                       account: "بيانات الحساب",
@@ -1244,7 +1264,24 @@ function App() {
                 {error}
               </div>
             )}
-            {["entry", "view"].includes(modal.kind) ? (
+            {modal.kind === "import" ? (
+              <ImportPanel
+                data={data}
+                busy={busy}
+                initialMode={modal.mode}
+                onSave={(next, summary) =>
+                  action(async () => {
+                    await persist(next);
+                    setModal(null);
+                    setToast(
+                      summary.accountsOnly
+                        ? "تمت إضافة شجرة الحسابات"
+                        : `تم استيراد ${summary.entries} قيد بنجاح`,
+                    );
+                  })
+                }
+              />
+            ) : ["entry", "view"].includes(modal.kind) ? (
               <EntryForm
                 entry={modal.value}
                 data={data}
@@ -1481,6 +1518,20 @@ function MasterForm({ kind, initial, data, onSave, busy }) {
             </select>
           </Field>
         )}
+        {kind === "account" && (
+          <Field label="الطبيعة المحاسبية">
+            <select
+              value={
+                v.normalBalance ||
+                (["asset", "expense"].includes(v.type) ? "debit" : "credit")
+              }
+              onChange={(e) => setV({ ...v, normalBalance: e.target.value })}
+            >
+              <option value="debit">مدين</option>
+              <option value="credit">دائن</option>
+            </select>
+          </Field>
+        )}
         <Field
           label={
             kind === "account" ? "الحساب الرئيسي" : "المركز الرئيسي (اختياري)"
@@ -1557,6 +1608,23 @@ function EntryForm({ entry, data, readOnly, busy, onSave }) {
       }}
     >
       <div className="form-body">
+        {readOnly && entry.importKey && (
+          <details className="import-details">
+            <summary>تفاصيل الاستيراد من Excel</summary>
+            <p>
+              الملف: {entry.sourceFile} · الورقة: {entry.sourceSheet} · الصفوف:{" "}
+              {entry.sourceRows.join("، ")} · رقم القيد الأصلي:{" "}
+              {entry.sourceNumber || "بدون رقم"}
+            </p>
+            {entry.lines.map((l, i) => (
+              <p key={i}>
+                صف {l.sourceRow}: {l.reference && `مرجع: ${l.reference} · `}
+                {l.notes && `ملاحظات: ${l.notes} · `}القيم الأصلية: مدين{" "}
+                {String(l.sourceDebit)} / دائن {String(l.sourceCredit)}
+              </p>
+            ))}
+          </details>
+        )}
         <div className="entry-top">
           <Field label="تاريخ القيد">
             <input

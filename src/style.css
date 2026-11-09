@@ -1153,3 +1153,146 @@ nav .nav-label {
   color: #54739e;
   font-size: 16px;
 }
+.import-panel {
+  padding: 22px;
+}
+.import-panel .upload {
+  margin: 18px 0;
+}
+.import-notice {
+  background: #eef5ff;
+  border: 1px solid #dce8fa;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  color: #426ba7;
+  margin-bottom: 16px;
+  font-size: 12px;
+}
+.import-notice svg {
+  flex-shrink: 0;
+}
+.import-notice p {
+  font-size: 11px;
+  line-height: 1.9;
+  margin-top: 5px;
+}
+.import-mode {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+.import-mode label,
+.partial-confirm {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+}
+.import-mode input,
+.partial-confirm input {
+  width: 17px;
+  min-height: 17px;
+  accent-color: #0866ed;
+}
+.import-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 20px 0;
+}
+.import-stats > span {
+  border: 1px solid var(--border);
+  padding: 13px;
+  border-radius: 7px;
+  font-size: 11px;
+}
+.import-stats strong {
+  display: block;
+  font-size: 23px;
+  margin-bottom: 5px;
+}
+.import-details {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 18px 0;
+  padding: 14px;
+}
+.import-details summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+}
+.import-details p {
+  font-size: 11px;
+  color: #8491a7;
+  line-height: 1.9;
+  margin: 10px 0;
+}
+.import-details select {
+  min-width: 210px;
+  font-size: 11px;
+}
+.import-tabs {
+  display: flex;
+  gap: 10px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+.import-preview {
+  max-height: 330px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.import-preview th {
+  position: sticky;
+  top: 0;
+}
+.import-preview td {
+  min-width: 100px;
+}
+.import-preview td:nth-child(3),
+.import-preview td:last-child {
+  min-width: 210px;
+}
+.partial-confirm {
+  background: #fff7e7;
+  border: 1px solid #f0dfb7;
+  border-radius: 7px;
+  color: #947331;
+  padding: 14px;
+  margin: 18px 0;
+  line-height: 1.8;
+}
+.import-loading {
+  text-align: center;
+  padding: 22px;
+  color: #7c8da7;
+  font-size: 12px;
+}
+.import-panel > .modal-footer {
+  margin: 22px -22px 15px;
+  gap: 12px;
+}
+.import-stats .danger {
+  color: #c35a65;
+}
+@media (max-width: 760px) {
+  .import-panel {
+    padding: 14px;
+  }
+  .import-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .import-panel > .modal-footer {
+    margin: 18px -14px 12px;
+    flex-wrap: wrap;
+  }
+  .import-panel .modal-footer button {
+    font-size: 11px;
+  }
+  .import-mode {
+    gap: 12px;
+  }
+}
