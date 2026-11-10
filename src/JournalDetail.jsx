@@ -14,15 +14,12 @@ import { money } from "./accounting";
 import { journalLabel } from "./JournalList";
 import BrandLogo from "./BrandLogo";
 import AttachmentsPanel from "./AttachmentsPanel";
-import DocumentsField from "./DocumentsField";
-import { entryDocuments } from "./documents";
 export default function JournalDetail({
   entry,
   data,
   onBack,
   onEdit,
   onState,
-  onLinks,
   onExport,
   busy,
 }) {
@@ -226,16 +223,6 @@ export default function JournalDetail({
         entry={entry}
         extraDocuments={data.entryDocuments?.[entry.id]}
       />
-      {(entry.importKey ||
-        entryDocuments(entry, data.entryDocuments?.[entry.id]).length > 0) &&
-        entry.status !== "deleted" && (
-          <DocumentsField
-            readOnly
-            links={entryDocuments(entry, data.entryDocuments?.[entry.id])}
-            onSave={(links) => onLinks(entry, links)}
-            busy={busy}
-          />
-        )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import {
   extractWorkbook,
   importPlan,
   applyImport,
+  planJournalImport,
 } from "../src/importer.js";
 const header = [
   "",
@@ -169,4 +170,56 @@ test("changing references, annotations, filename or original numbering does not 
   const preview = await importPlan(next, imported);
   assert.equal(preview.duplicates.length, 1);
   assert.equal(preview.ready.length, 0);
+});
+
+test("journal-only import reuses the existing chart and ignores the optional directory sheet", async () => {
+  const d = seed();
+  const x = extract([
+    row(100, null, "الصندوق"),
+    row(null, 100, "إيرادات الدورات التعليمية"),
+  ]);
+  const p = await planJournalImport(x, d);
+  assert.equal(p.ready.length, 1);
+  assert.equal(p.chart.added, 0);
+  assert.deepEqual(applyImport(p, d).accounts, d.accounts);
+});
+test("journal-only import reports missing, parent and ambiguous accounts instead of creating accounts", async () => {
+  const d = seed();
+  const x = extract([
+    row(100, null, "الصندوق"),
+    row(null, 100, "إيرادات الدورات التعليمية"),
+    [],
+    row(10, null, "حساب جديد غير موجود"),
+    row(null, 10, "إيرادات الدورات التعليمية"),
+  ]);
+  const p = await planJournalImport(x, d);
+  assert.equal(p.ready.length, 1);
+  assert.equal(p.errors.length, 1);
+  assert.match(p.errors[0].errors.join(" "), /غير موجود/);
+  assert.deepEqual(
+    applyImport(p, d, { allowPartial: true }).accounts,
+    d.accounts,
+  );
+  const parent = await planJournalImport(
+    extract([
+      row(100, null, "الالتزامات"),
+      row(null, 100, "إيرادات الدورات التعليمية"),
+    ]),
+    d,
+  );
+  assert.match(parent.errors[0].errors.join(" "), /رئيسي/);
+  const duplicate = structuredClone(d);
+  duplicate.accounts.push({
+    ...d.accounts.find((a) => a.id === "cash"),
+    id: "cash-two",
+    code: "1103",
+  });
+  const ambiguous = await planJournalImport(
+    extract([
+      row(100, null, "الصندوق"),
+      row(null, 100, "إيرادات الدورات التعليمية"),
+    ]),
+    duplicate,
+  );
+  assert.match(ambiguous.errors[0].errors.join(" "), /مكرر/);
 });

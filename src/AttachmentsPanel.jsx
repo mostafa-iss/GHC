@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from "react";
-import {
-  FileText,
-  Download,
-  ExternalLink,
-  Image as ImageIcon,
-  Paperclip,
-} from "lucide-react";
+import { FileText, Download, ExternalLink, Paperclip } from "lucide-react";
 import { client, cloud } from "./store";
 import { entryDocuments } from "./documents";
+import driveLogo from "./assets/google-drive.svg";
 function Attachment({ file }) {
   const [url, setUrl] = useState(""),
     [error, setError] = useState("");
@@ -57,28 +52,19 @@ function Attachment({ file }) {
 }
 export default function AttachmentsPanel({ entry, extraDocuments }) {
   const links = entryDocuments(entry, extraDocuments);
+  const hasFiles = Boolean(entry.attachments?.length);
   return (
     <section className="journal-attachments">
       <h2>
         <Paperclip size={20} />
-        المرفقات
+        مرفقات القيد
       </h2>
       <div className="attachment-section">
-        <h3>مرفقات القيد</h3>
-        {entry.attachments?.length ? (
+        {hasFiles || links.length ? (
           <div className="attachment-grid">
-            {entry.attachments.map((a) => (
+            {entry.attachments?.map((a) => (
               <Attachment key={a.path} file={a} />
             ))}
-          </div>
-        ) : (
-          <p className="muted">لا توجد ملفات مرفوعة على هذا القيد.</p>
-        )}
-      </div>
-      <div className="attachment-section legacy-documents">
-        <h3>مستندات Drive — القيود المستوردة</h3>
-        {links.length ? (
-          <div className="attachment-grid">
             {links.map((d, i) => (
               <a
                 className="drive-card"
@@ -87,11 +73,17 @@ export default function AttachmentsPanel({ entry, extraDocuments }) {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <span className="drive-mark">△</span>
-                <strong>
+                <span className="drive-card-preview">
+                  <img
+                    className="drive-logo"
+                    src={driveLogo}
+                    alt="Google Drive"
+                  />
+                </span>
+                <strong className="attachment-name">
                   {d.label === "ملف Drive" ? "مستند Drive " + (i + 1) : d.label}
                 </strong>
-                <small>
+                <small className="drive-card-action">
                   <ExternalLink size={13} />
                   فتح في Google Drive
                 </small>
@@ -99,7 +91,7 @@ export default function AttachmentsPanel({ entry, extraDocuments }) {
             ))}
           </div>
         ) : (
-          <p className="muted">لا توجد روابط Drive لهذا القيد.</p>
+          <p className="muted">لا توجد مرفقات لهذا القيد.</p>
         )}
       </div>
     </section>

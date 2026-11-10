@@ -1,6 +1,6 @@
 import { mergeDocuments, entryDocuments } from "./documents.js";
 import { brandedWorkbook, addReportTable, saveWorkbook } from "./exports.js";
-import { types, validateEntry } from "./accounting.js";
+import { types, validateEntry, postingAccounts } from "./accounting.js";
 export const normalizeName = (value) =>
   String(value ?? "")
     .normalize("NFKC")
@@ -440,8 +440,52 @@ async function digest(v) {
     .map((x) => x.toString(16).padStart(2, "0"))
     .join("");
 }
-export async function importPlan(extracted, data, overrides = {}) {
-  const chart = chartPlan(extracted.names, data, overrides),
+export function existingJournalAccounts(extracted, data) {
+  const names = [
+    ...new Map(
+      extracted.rows
+        .filter((r) => r.account)
+        .map((r) => [normalizeName(r.account), String(r.account).trim()]),
+    ).values(),
+  ];
+  const leaves = postingAccounts(data.accounts);
+  return {
+    accounts: data.accounts,
+    added: 0,
+    issues: [],
+    existingOnly: true,
+    items: names.map((name) => {
+      const matches = leaves.filter(
+        (a) => normalizeName(a.name) === normalizeName(name),
+      );
+      if (matches.length === 1) return { ...matches[0], status: "existing" };
+      const parent = data.accounts.some(
+        (a) => normalizeName(a.name) === normalizeName(name),
+      );
+      return {
+        name,
+        issue:
+          matches.length > 1
+            ? "اسم الحساب مكرر في الشجرة: " + name
+            : parent
+              ? "الحساب رئيسي؛ اختر آخر حساب فرعي: " + name
+              : "الحساب غير موجود في الشجرة الحالية: " + name,
+      };
+    }),
+  };
+}
+export function planJournalImport(extracted, data) {
+  return importPlan(extracted, data, {}, { existingAccountsOnly: true });
+}
+export async function importPlan(
+  extracted,
+  data,
+  overrides = {},
+  { existingAccountsOnly = false } = {},
+) {
+  const chart = existingAccountsOnly
+      ? existingJournalAccounts(extracted, data)
+      : chartPlan(extracted.names, data, overrides),
     groupsOut = [],
     groupsPending = [];
   let pending = [],
@@ -534,7 +578,7 @@ export async function importPlan(extracted, data, overrides = {}) {
           (a) => normalizeName(a.name) === normalizeName(r.account),
         );
         const a = matches[0];
-        if (!a?.id) errors.push("حساب يحتاج تصنيفًا: " + r.account);
+        if (!a?.id) errors.push(a?.issue || "حساب يحتاج تصنيفًا: " + r.account);
         const center = r.center
           ? data.centers.filter(
               (c) => normalizeName(c.name) === normalizeName(r.center),
@@ -694,7 +738,7 @@ export function applyImport(
     ...(Object.keys(entryDocumentsMap).length
       ? { entryDocuments: entryDocumentsMap }
       : {}),
-    accounts: plan.chart.accounts,
+    accounts: plan.chart.existingOnly ? data.accounts : plan.chart.accounts,
     entries: [...data.entries, ...entries],
     ...(asDraft
       ? { draftEntries: drafts, draftNumberSequence: draftNumber }

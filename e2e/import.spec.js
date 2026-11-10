@@ -1,7 +1,6 @@
 import { test, expect } from "@playwright/test";
 import ExcelJS from "exceljs";
-import { readFileSync } from "node:fs";
-import { unzipSync } from "fflate";
+import { seed } from "../src/accounting.js";
 async function fixture() {
   const w = new ExcelJS.Workbook(),
     s = w.addWorksheet("اليومية");
@@ -23,7 +22,7 @@ async function fixture() {
     1250.5,
     null,
     "ريال سعودي",
-    "بنك تجريبي",
+    "الصندوق",
     "رسوم دورة تجريبية",
     null,
     {
@@ -38,7 +37,7 @@ async function fixture() {
     null,
     1250.5,
     "ريال سعودي",
-    "إيرادات",
+    "إيرادات الدورات التعليمية",
     "رسوم دورة تجريبية",
     null,
     "REF-1",
@@ -51,7 +50,7 @@ async function fixture() {
     10,
     null,
     "ريال سعودي",
-    "بنك تجريبي",
+    "الصندوق",
     "قيد غير متوازن",
     null,
     "",
@@ -62,7 +61,7 @@ async function fixture() {
     null,
     9,
     "ريال سعودي",
-    "إيرادات",
+    "إيرادات الدورات التعليمية",
     "قيد غير متوازن",
     null,
     "",
@@ -75,7 +74,7 @@ async function fixture() {
     buffer: Buffer.from(await w.xlsx.writeBuffer()),
   };
 }
-test("Excel preview requires explicit partial consent, exports chart, preserves source data and prevents replay", async ({
+test("Journal-only Excel import preserves the existing chart, requires partial consent and prevents replay", async ({
   page,
 }) => {
   const errors = [];
@@ -94,20 +93,13 @@ test("Excel preview requires explicit partial consent, exports chart, preserves 
     page.getByRole("button", { name: "تأكيد استيراد 1 قيد" }),
   ).toBeDisabled();
   await expect(page.locator(".import-preview")).toContainText("غير متوازن");
-  await page.getByText("شجرة الحسابات والأكواد المقترحة").click();
-  await expect(page.locator(".import-details")).toContainText("111001");
-  const dl = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "تنزيل شجرة الحسابات المكودة" })
-    .click();
-  const downloaded = await dl;
-  expect(downloaded.suggestedFilename()).toContain(".xlsx");
-  const zip = unzipSync(readFileSync(await downloaded.path()));
-  expect(
-    Object.keys(zip).some(
-      (k) => k.startsWith("xl/media/") && k.endsWith(".png"),
-    ),
-  ).toBeTruthy();
+  await expect(
+    page.getByRole("dialog").locator("input[type=file]"),
+  ).toHaveCount(1);
+  await expect(page.getByRole("radio")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "تنزيل شجرة الحسابات المكودة" }),
+  ).toHaveCount(0);
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "تأكيد استيراد 1 قيد" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -122,22 +114,15 @@ test("Excel preview requires explicit partial consent, exports chart, preserves 
     "href",
     "https://drive.google.com/file/d/EXAMPLE_E2E/view",
   );
-  const before = await page.evaluate(
-    () => JSON.parse(localStorage.getItem("ghaith-demo-v1")).entries,
+  await expect(page.locator(".journal-detail > .documents-field")).toHaveCount(
+    0,
   );
-  await page.getByRole("button", { name: "إضافة أو تعديل الروابط" }).click();
-  await page
-    .getByLabel("روابط مستندات Drive")
-    .fill(
-      "https://drive.google.com/file/d/EXAMPLE_E2E/view\nhttps://drive.google.com/file/d/SECOND_FILE/view",
-    );
-  await page.getByRole("button", { name: "حفظ الروابط", exact: true }).click();
-  await expect(page.locator(".drive-card")).toHaveCount(2);
+  await expect(page.getByRole("img", { name: "Google Drive" })).toBeVisible();
   expect(
     await page.evaluate(
-      () => JSON.parse(localStorage.getItem("ghaith-demo-v1")).entries,
+      () => JSON.parse(localStorage.getItem("ghaith-demo-v1")).accounts,
     ),
-  ).toEqual(before);
+  ).toEqual(seed().accounts);
   await page
     .getByRole("navigation")
     .getByRole("button", { name: "القيود اليومية", exact: true })

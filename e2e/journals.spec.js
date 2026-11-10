@@ -49,7 +49,7 @@ test("Daftra journal workspace: draft, post, Arabic title/account search, full d
   await page.locator(".journal-title").click();
   await expect(page.locator(".journal-paper-table")).toContainText("500.00");
   await expect(
-    page.getByRole("heading", { name: "المرفقات", exact: true }),
+    page.getByRole("heading", { name: "مرفقات القيد", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "ترحيل القيد", exact: true }).click();
   await expect(page.locator(".journal-detail-heading")).toContainText("مرحّل");

@@ -1178,19 +1178,13 @@ nav .nav-label {
   line-height: 1.9;
   margin-top: 5px;
 }
-.import-mode {
-  display: flex;
-  gap: 22px;
-  flex-wrap: wrap;
-}
-.import-mode label,
+
 .partial-confirm {
   display: flex;
   align-items: center;
   gap: 9px;
   font-size: 12px;
 }
-.import-mode input,
 .partial-confirm input {
   width: 17px;
   min-height: 17px;
@@ -1291,9 +1285,6 @@ nav .nav-label {
   }
   .import-panel .modal-footer button {
     font-size: 11px;
-  }
-  .import-mode {
-    gap: 12px;
   }
 }
 
@@ -2078,10 +2069,7 @@ nav .nav-label {
   margin-bottom: 18px;
   color: #718297;
 }
-.attachment-section.legacy-documents {
-  border-top: 1px solid #e7edf2;
-  background: #fcfdfe;
-}
+
 .attachment-grid {
   display: flex;
   flex-wrap: wrap;
@@ -2139,10 +2127,7 @@ nav .nav-label {
   color: #516a70;
   background: #fff;
 }
-.drive-mark {
-  font-size: 44px;
-  color: #269879;
-}
+
 .drive-card strong {
   font-size: 11px;
 }
@@ -2314,5 +2299,62 @@ nav .nav-label {
   }
   .journal-detail > .documents-field {
     display: none;
+  }
+}
+/* One attachment gallery: uploaded documents and Drive documents share the same row. */
+.attachment-grid {
+  align-items: stretch;
+}
+.attachment-grid > .attachment-card,
+.attachment-grid > .drive-card {
+  width: 160px;
+  flex: 0 0 160px;
+  min-height: 230px;
+}
+.attachment-grid > .drive-card {
+  padding: 0;
+  gap: 0;
+  justify-content: flex-start;
+  align-items: stretch;
+  background: #fff;
+}
+.drive-card-preview {
+  height: 165px;
+  display: grid;
+  place-items: center;
+}
+.drive-logo {
+  display: block;
+  width: 66px;
+  height: 66px;
+}
+.drive-card .attachment-name {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+}
+.drive-card .drive-card-action {
+  min-height: 32px;
+  justify-content: center;
+  padding: 8px;
+}
+.import-stats.journals-only {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.import-status {
+  margin: 18px 0;
+  max-width: 360px;
+}
+@media (max-width: 760px) {
+  .attachment-grid {
+    gap: 12px;
+  }
+  .attachment-grid > .attachment-card,
+  .attachment-grid > .drive-card {
+    width: 140px;
+    flex-basis: 140px;
+  }
+  .import-stats.journals-only {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

@@ -331,22 +331,6 @@ function App() {
       );
     });
   }
-  async function saveLinks(e, links) {
-    setBusy(true);
-    setError("");
-    try {
-      await persist({
-        ...data,
-        entryDocuments: { ...(data.entryDocuments || {}), [e.id]: links },
-      });
-    } catch (err) {
-      setError(err.message);
-      await refresh();
-      throw err;
-    } finally {
-      setBusy(false);
-    }
-  }
   function downloadJournals(entries, title = "اليومية") {
     return action(() =>
       exportJournals(data, entries, {
@@ -692,21 +676,6 @@ function App() {
                   (page === "entries" ? "journal-generic-actions" : "")
                 }
               >
-                {["entries", "accounts"].includes(page) && (
-                  <button
-                    onClick={() => {
-                      setError("");
-                      setModal({
-                        kind: "import",
-                        mode: page === "accounts" ? "accounts" : "entries",
-                        value: {},
-                      });
-                    }}
-                  >
-                    <Upload size={17} />
-                    استيراد Excel
-                  </button>
-                )}
                 {["dashboard", "entries"].includes(page) ? (
                   <button className="primary" onClick={newEntry}>
                     <Plus size={18} />
@@ -753,7 +722,7 @@ function App() {
               onBack={() => nav("entries")}
               onEdit={editJournal}
               onState={journalAction}
-              onLinks={saveLinks}
+
               onExport={(e) => downloadJournals([e], "قيد يومية")}
               busy={busy}
             />
@@ -1023,9 +992,7 @@ function App() {
                       أضف قيد
                     </button>
                     <button
-                      onClick={() =>
-                        setModal({ kind: "import", mode: "entries", value: {} })
-                      }
+                      onClick={() => setModal({ kind: "import", value: {} })}
                     >
                       <Upload size={16} />
                       استيراد
@@ -1577,7 +1544,7 @@ function App() {
                 <h2>
                   {
                     {
-                      import: "استيراد القيود وشجرة الحسابات",
+                      import: "استيراد القيود اليومية",
                       entry: "إضافة قيد يومي",
                       view: `قيد يومي #${modal.value.number}`,
                       account: "بيانات الحساب",
@@ -1599,17 +1566,14 @@ function App() {
               <ImportPanel
                 data={data}
                 busy={busy}
-                initialMode={modal.mode}
                 onSave={(next, summary) =>
                   action(async () => {
                     await persist(next);
                     setModal(null);
                     setToast(
-                      summary.accountsOnly
-                        ? "تمت إضافة شجرة الحسابات"
-                        : summary.entries
-                          ? `تم استيراد ${summary.entries} ${summary.asDraft ? "مسودة" : "قيد مرحّل"} بنجاح`
-                          : `تم استكمال روابط ${summary.linkUpdates} قيد`,
+                      summary.entries
+                        ? `تم استيراد ${summary.entries} ${summary.asDraft ? "مسودة" : "قيد مرحّل"} بنجاح`
+                        : `تم استكمال روابط ${summary.linkUpdates} قيد`,
                     );
                   })
                 }
