@@ -8,11 +8,19 @@ import {
 } from "lucide-react";
 import { money } from "./accounting";
 import { entryDocuments } from "./documents";
+import AccountChip from "./AccountChip";
 export const journalLabel = (e) =>
   e.number
     ? "#" + String(e.number).padStart(4, "0")
     : "مسودة D-" + String(e.draftNumber || 1).padStart(4, "0");
-export default function JournalList({ entries, data, open, onState, busy }) {
+export default function JournalList({
+  entries,
+  data,
+  open,
+  onState,
+  busy,
+  onAccountOpen,
+}) {
   const [page, setPage] = useState(0),
     [menu, setMenu] = useState(null);
   const size = 20;
@@ -86,13 +94,23 @@ export default function JournalList({ entries, data, open, onState, busy }) {
               <div className="journal-accounts">
                 <div>
                   {debits.map((l, i) => (
-                    <span key={i}>{account(l.accountId)}</span>
+                    <AccountChip
+                      key={i}
+                      accountId={l.accountId}
+                      label={account(l.accountId)}
+                      onOpen={onAccountOpen}
+                    />
                   ))}
                 </div>
                 <ChevronLeft size={19} />
                 <div>
                   {credits.map((l, i) => (
-                    <span key={i}>{account(l.accountId)}</span>
+                    <AccountChip
+                      key={i}
+                      accountId={l.accountId}
+                      label={account(l.accountId)}
+                      onOpen={onAccountOpen}
+                    />
                   ))}
                 </div>
               </div>

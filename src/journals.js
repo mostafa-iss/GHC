@@ -1,7 +1,7 @@
 import { validateEntry, postingAccounts } from "./accounting.js";
-export const isPosted = (data, e) =>
-  (data.entryLifecycle?.[e.id]?.status || e.status || "posted") === "posted";
+export const isPosted = (data, e) => journalStatus(data, e) === "posted";
 export function journalStatus(data, e) {
+  if (data.draftEntries?.some((draft) => draft.id === e.id)) return "draft";
   return data.entryLifecycle?.[e.id]?.status || e.status || "posted";
 }
 export function allJournals(data) {

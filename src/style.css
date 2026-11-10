@@ -255,9 +255,10 @@ nav button svg:last-child:not(:first-child) {
   min-width: 0;
 }
 header {
-  height: 75px;
-  background: white;
-  border-bottom: 1px solid var(--border);
+  height: 52px;
+  background: #234c60;
+  color: #fff;
+  border-bottom: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -269,10 +270,10 @@ header {
   align-items: center;
   gap: 12px;
   font-size: 11px;
-  color: #97a2b3;
+  color: #d4e1e8;
 }
 .breadcrumb strong {
-  color: #4c5b70;
+  color: #fff;
   font-weight: 600;
 }
 .profile {
@@ -283,7 +284,7 @@ header {
 }
 .profile small {
   display: block;
-  color: var(--muted);
+  color: #b4c8d4;
   font-size: 9px;
 }
 .avatar {
@@ -955,7 +956,7 @@ footer {
   }
   header {
     padding: 0 12px;
-    height: 64px;
+    height: 54px;
   }
   .breadcrumb {
     font-size: 9px;
@@ -1620,15 +1621,7 @@ nav .nav-label {
 .journal-workspace {
   background: #e4ecf2;
 }
-.journal-workspace header {
-  height: 52px;
-  background: #234c60;
-  color: white;
-  border-bottom: 0;
-}
-.journal-workspace .breadcrumb,
-.journal-workspace .breadcrumb strong,
-.journal-workspace header button {
+.main > header button {
   color: #fff;
 }
 .journal-workspace main {
@@ -1845,8 +1838,8 @@ nav .nav-label {
   flex-wrap: wrap;
   gap: 5px;
 }
-.journal-accounts span,
-.journal-detail-flow span {
+.journal-accounts .account-chip,
+.journal-detail-flow .account-chip {
   display: inline-block;
   padding: 9px 12px;
   background: #e7eef5;
@@ -2198,9 +2191,6 @@ nav .nav-label {
     margin: -15px -15px 18px;
     padding: 16px;
   }
-  .journal-workspace header {
-    height: 54px;
-  }
   .journal-paper-canvas {
     margin: 0 10px 15px;
     padding: 20px 12px;
@@ -2223,7 +2213,7 @@ nav .nav-label {
     font-size: 10px;
     padding: 8px;
   }
-  .journal-accounts span {
+  .journal-accounts .account-chip {
     font-size: 10px;
     padding: 7px;
   }
@@ -2356,5 +2346,52 @@ nav .nav-label {
   }
   .import-stats.journals-only {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.account-chip {
+  display: inline-block;
+  border: 0;
+  border-radius: 0;
+  background: #e7eef5;
+  color: #294258;
+  padding: 9px 12px;
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: inherit;
+  box-shadow: none;
+  cursor: pointer;
+}
+.account-chip:hover:not(:disabled) {
+  background: #d8e5ed;
+  color: #1f5965;
+  text-decoration: underline;
+  border: 0;
+}
+.account-chip:focus-visible {
+  outline: 2px solid #287b74;
+  outline-offset: 2px;
+}
+.account-chip:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.dashboard-account-chips {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  min-width: 155px;
+}
+.dashboard-account-chips .account-chip {
+  font-size: 10px;
+  padding: 5px 8px;
+}
+@media print {
+  .account-chip {
+    display: inline-block !important;
+    padding: 0;
+    border: 0;
+    background: none !important;
+    color: #24384b;
   }
 }

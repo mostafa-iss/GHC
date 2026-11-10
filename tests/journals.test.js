@@ -119,6 +119,15 @@ test("exported daily journal columns can be imported again and draft imports rem
   const imported = applyImport(plan, seed(), { asDraft: true });
   assert.equal(imported.entries.length, 0);
   assert.equal(imported.draftEntries.length, 1);
+  assert.equal(allJournals(imported)[0].status, "draft");
   assert.equal(cash(imported), 0);
   assert.equal((await importPlan(x, imported)).duplicates.length, 1);
+  const posted = changeJournalState(
+    imported,
+    imported.draftEntries[0].id,
+    "post",
+  );
+  assert.equal(posted.draftEntries.length, 0);
+  assert.equal(allJournals(posted)[0].status, "posted");
+  assert.equal(cash(posted), 10000);
 });

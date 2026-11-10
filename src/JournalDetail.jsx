@@ -14,6 +14,7 @@ import { money } from "./accounting";
 import { journalLabel } from "./JournalList";
 import BrandLogo from "./BrandLogo";
 import AttachmentsPanel from "./AttachmentsPanel";
+import AccountChip from "./AccountChip";
 export default function JournalDetail({
   entry,
   data,
@@ -21,6 +22,7 @@ export default function JournalDetail({
   onEdit,
   onState,
   onExport,
+  onAccountOpen,
   busy,
 }) {
   const [tab, setTab] = useState("entry");
@@ -51,17 +53,23 @@ export default function JournalDetail({
           {entry.lines
             .filter((l) => l.debit > 0)
             .map((l, i) => (
-              <span key={i}>
-                {account(l.accountId)?.name || "حساب غير محدد"}
-              </span>
+              <AccountChip
+                key={i}
+                accountId={l.accountId}
+                label={account(l.accountId)?.name || "حساب غير محدد"}
+                onOpen={onAccountOpen}
+              />
             ))}
           <ChevronLeft size={19} />
           {entry.lines
             .filter((l) => l.credit > 0)
             .map((l, i) => (
-              <span key={i}>
-                {account(l.accountId)?.name || "حساب غير محدد"}
-              </span>
+              <AccountChip
+                key={i}
+                accountId={l.accountId}
+                label={account(l.accountId)?.name || "حساب غير محدد"}
+                onOpen={onAccountOpen}
+              />
             ))}
         </div>
       </div>

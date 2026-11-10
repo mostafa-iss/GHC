@@ -48,6 +48,7 @@ import {
 } from "./store";
 import JournalFilters, { emptyJournalFilter } from "./JournalFilters";
 import JournalList from "./JournalList";
+import AccountChip from "./AccountChip";
 import JournalDetail from "./JournalDetail";
 import {
   allJournals,
@@ -245,6 +246,13 @@ function App() {
         : { from: "", to: today(), centerId: "", accountId: "", search: "" },
     );
   }
+  function openAccountLedger(accountId) {
+    if (!data.accounts.some((a) => a.id === accountId)) return;
+    setPage("ledger");
+    setSide(false);
+    setError("");
+    setFilter({ from: "", to: "", accountId, centerId: "", search: "" });
+  }
   function openJournal(e) {
     setJournalId(e.id);
     setPage("journal");
@@ -374,7 +382,7 @@ function App() {
     if (page === "entries") return downloadJournals(visibleEntries);
     await action(async () => {
       const title = pages.find((p) => p[0] === page)?.[1] || "تقرير";
-      const subtitle = `الفترة: ${filter.from || "بداية التسجيل"} — ${filter.to || "حتى الآن"} · ${filter.accountId ? name(filter.accountId) : "جميع الحسابات"} · ${filter.centerId ? center(filter.centerId) : "جميع مراكز التكلفة"}`;
+      const subtitle = `الفترة: ${!filter.from && !filter.to ? "جميع الفترات" : `${filter.from || "بداية التسجيل"} — ${filter.to || "بدون تاريخ نهاية"}`} · ${filter.accountId ? name(filter.accountId) : "جميع الحسابات"} · ${filter.centerId ? center(filter.centerId) : "جميع مراكز التكلفة"}`;
       let headers, values;
       if (page === "entries") {
         headers = [
@@ -569,7 +577,7 @@ function App() {
             <button className="icon mobile" onClick={() => setSide(!side)}>
               <Menu />
             </button>
-            المساحة المحاسبية <ChevronLeft size={14} />
+            غيث <ChevronLeft size={14} />
             <strong>
               {page === "journal"
                 ? "قيد يومية"
@@ -577,9 +585,7 @@ function App() {
             </strong>
           </div>
           <div className="profile">
-            <span className={"mode " + (!cloud ? "demo" : "")}>
-              {cloud ? "متصل بالسحابة" : "وضع تجريبي محلي"}
-            </span>
+            {!cloud && <span className="mode demo">وضع تجريبي محلي</span>}
             <span className="avatar">G</span>
             <span>
               ghaith<small>محاسب</small>
@@ -722,7 +728,7 @@ function App() {
               onBack={() => nav("entries")}
               onEdit={editJournal}
               onState={journalAction}
-
+              onAccountOpen={openAccountLedger}
               onExport={(e) => downloadJournals([e], "قيد يومية")}
               busy={busy}
             />
@@ -795,6 +801,8 @@ function App() {
                   </div>
                   <EntryTable
                     documents={data.entryDocuments}
+                    accounts={data.accounts}
+                    onAccountOpen={openAccountLedger}
                     entries={visibleEntries.slice(0, 5)}
                     open={openJournal}
                   />
@@ -1090,6 +1098,7 @@ function App() {
                     entries={visibleEntries}
                     data={data}
                     open={openJournal}
+                    onAccountOpen={openAccountLedger}
                     onState={journalAction}
                     busy={busy}
                   />
@@ -1749,7 +1758,13 @@ function Empty({
     </div>
   );
 }
-function EntryTable({ entries, open, documents = {} }) {
+function EntryTable({
+  entries,
+  open,
+  documents = {},
+  accounts = [],
+  onAccountOpen,
+}) {
   return !entries.length ? (
     <Empty />
   ) : (
@@ -1760,6 +1775,7 @@ function EntryTable({ entries, open, documents = {} }) {
             <th>رقم القيد</th>
             <th>التاريخ</th>
             <th>البيان</th>
+            <th>الحسابات</th>
             <th>القيمة (ر.س)</th>
             <th>الحالة</th>
             <th>مرفقات</th>
@@ -1775,6 +1791,23 @@ function EntryTable({ entries, open, documents = {} }) {
               </td>
               <td>{e.date}</td>
               <td>{e.description}</td>
+              <td>
+                <div className="dashboard-account-chips">
+                  {[
+                    ...new Set(e.lines.map((l) => l.accountId).filter(Boolean)),
+                  ].map((id) => (
+                    <AccountChip
+                      key={id}
+                      accountId={id}
+                      label={
+                        accounts.find((a) => a.id === id)?.name ||
+                        "حساب غير محدد"
+                      }
+                      onOpen={onAccountOpen}
+                    />
+                  ))}
+                </div>
+              </td>
               <td className="numeric">
                 {money(e.lines.reduce((s, l) => s + l.debit, 0))}
               </td>
@@ -1808,8 +1841,10 @@ function ReportTitle({ title, filter }) {
       <BrandLogo className="report-logo" />
       <h2>{title}</h2>
       <p>
-        {filter.from || "بداية التسجيل"} — {filter.to || "حتى الآن"} · العملة:
-        الريال السعودي (SAR)
+        {!filter.from && !filter.to
+          ? "جميع الفترات"
+          : `${filter.from || "بداية التسجيل"} — ${filter.to || "بدون تاريخ نهاية"}`}{" "}
+        · العملة: الريال السعودي (SAR)
       </p>
     </div>
   );
