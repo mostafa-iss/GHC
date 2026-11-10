@@ -28,12 +28,28 @@ export function balanceSheet(data, to) {
     difference: assets.total - liabilities.total - equity.total - result,
   };
 }
+export function isReportMonth(value) {
+  return (
+    typeof value === "string" && /^(?!0000)\d{4}-(0[1-9]|1[0-2])$/.test(value)
+  );
+}
+export function isReportDate(value) {
+  return (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    isReportMonth(value.slice(0, 7)) &&
+    value >= value.slice(0, 7) + "-01" &&
+    value <= monthBounds(value.slice(0, 7)).to
+  );
+}
 export function monthBounds(month) {
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw Error("اختر شهرًا صحيحًا");
+  if (!isReportMonth(month)) throw Error("اختر شهرًا صحيحًا");
   const [y, m] = month.split("-").map(Number);
+  const leap = y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   return {
     from: month + "-01",
-    to: month + "-" + new Date(Date.UTC(y, m, 0)).getUTCDate(),
+    to: month + "-" + days[m - 1],
   };
 }
 export function previousMonth(month) {

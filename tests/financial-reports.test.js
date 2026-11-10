@@ -5,8 +5,50 @@ import {
   balanceSheet,
   monthlyComparison,
   previousMonth,
+  isReportMonth,
+  isReportDate,
+  monthBounds,
 } from "../src/financialReports.js";
 import { copyJournal, makeTemplate } from "../src/templates.js";
+test("report periods reject incomplete and out-of-range input and use real calendar month ends", () => {
+  for (const value of [
+    "",
+    "2026",
+    "2026-",
+    "2026-00",
+    "2026-13",
+    "20261-01",
+    "0000-01",
+    null,
+  ]) {
+    assert.equal(isReportMonth(value), false);
+    assert.throws(() => monthBounds(value), /شهرًا صحيحًا/);
+  }
+  for (const [month, end] of [
+    ["2026-02", "28"],
+    ["2024-02", "29"],
+    ["1900-02", "28"],
+    ["2000-02", "29"],
+    ["0004-02", "29"],
+    ["9999-12", "31"],
+  ]) {
+    assert.equal(isReportMonth(month), true);
+    assert.deepEqual(monthBounds(month), {
+      from: month + "-01",
+      to: month + "-" + end,
+    });
+  }
+  assert.equal(isReportDate("2024-02-29"), true);
+  for (const value of [
+    "",
+    "2026-02-29",
+    "2026-01-00",
+    "2026-04-31",
+    "20261-01-01",
+    "0000-01-01",
+  ])
+    assert.equal(isReportDate(value), false);
+});
 const entry = (n, date, debit, credit, amount, centerId = "one") => ({
   id: String(n),
   number: n,

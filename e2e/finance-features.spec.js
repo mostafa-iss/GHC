@@ -57,6 +57,62 @@ function fixture() {
   ];
   return d;
 }
+test("monthly comparison survives clearing and temporarily invalid years in either month field", async ({
+  page,
+}) => {
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.addInitScript(
+    (data) => localStorage.setItem("ghaith-demo-v1", JSON.stringify(data)),
+    fixture(),
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "استكشاف النسخة التجريبية" }).click();
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "المقارنة الشهرية", exact: true })
+    .click();
+  const first = page.getByLabel("الشهر الأساسي"),
+    second = page.getByLabel("شهر المقارنة"),
+    revenue = page.locator("tr.group-row").filter({ hasText: "الإيرادات" });
+  await first.fill("2026-01");
+  await second.fill("2025-12");
+  for (const [field, validValue] of [
+    [first, "2026-01"],
+    [second, "2025-12"],
+  ]) {
+    // Native month inputs can emit years longer than four digits while editing.
+    await field.fill("20261-01");
+    await expect(page.getByRole("navigation")).toBeVisible();
+    await expect(field).toHaveAttribute("aria-invalid", "true");
+    await expect(page.getByRole("alert")).toContainText(
+      "اختر شهرًا وسنة صحيحين",
+    );
+    await expect(
+      page.getByRole("button", { name: "تصدير Excel", exact: true }),
+    ).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "طباعة / PDF", exact: true }),
+    ).toBeDisabled();
+    await expect(page.locator(".financial-report-view table")).toHaveCount(0);
+    await field.fill("");
+    await expect(field).toHaveValue("");
+    await field.fill(validValue);
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(revenue.locator("td").nth(1)).toHaveText("100.00");
+    await expect(revenue.locator("td").nth(2)).toHaveText("50.00");
+    await expect(revenue.locator("td").nth(4)).toHaveText("100.0%");
+    await expect(
+      page.getByRole("button", { name: "تصدير Excel", exact: true }),
+    ).toBeEnabled();
+  }
+  await first.fill("2025-12");
+  await second.fill("2026-01");
+  await expect(revenue.locator("td").nth(1)).toHaveText("50.00");
+  await expect(revenue.locator("td").nth(2)).toHaveText("100.00");
+  await expect(revenue.locator("td").nth(4)).toHaveText("-50.0%");
+  expect(errors).toEqual([]);
+});
 test("searchable accounts, journal copy/templates, financial reports, bank statements and reviewed backup restore", async ({
   page,
 }) => {
