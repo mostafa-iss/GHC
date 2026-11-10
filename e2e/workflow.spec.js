@@ -25,13 +25,21 @@ test("Arabic accounting workflow: center, balanced journal, reports, persistence
     .getByLabel("بيان القيد", { exact: true })
     .fill("تحصيل رسوم دورة الرياضيات");
   const trs = page.locator(".entry-lines tbody tr");
-  await trs.nth(0).locator("select").nth(0).selectOption("cash");
-  await trs.nth(1).locator("select").nth(0).selectOption("courses");
+  await page.getByRole("combobox", { name: "حساب السطر 1" }).fill("1101");
+  await page
+    .getByRole("listbox")
+    .getByRole("option", { name: /الصندوق/ })
+    .click();
+  await page.getByRole("combobox", { name: "حساب السطر 2" }).fill("4101");
+  await page
+    .getByRole("listbox")
+    .getByRole("option", { name: /إيرادات الدورات/ })
+    .click();
   for (let i = 0; i < 2; i++)
     await trs
       .nth(i)
       .locator("select")
-      .nth(1)
+      .nth(0)
       .selectOption({ label: "دورة الرياضيات" });
   await trs.nth(0).getByLabel("مدين", { exact: true }).fill("1250.50");
   await trs.nth(1).getByLabel("دائن", { exact: true }).fill("1000");
@@ -82,7 +90,10 @@ test("Arabic accounting workflow: center, balanced journal, reports, persistence
   await expect(page.locator("footer")).toHaveCount(0);
   await page.screenshot({ path: "/tmp/ghaith-desktop.png", fullPage: true });
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "تنزيل نسخة احتياطية" }).click();
+  await page
+    .locator(".sidebar-bottom")
+    .getByRole("button", { name: "تنزيل نسخة احتياطية" })
+    .click();
   const backup = await download;
   expect(backup.suggestedFilename()).toContain(".zip");
   const contents = unzipSync(readFileSync(await backup.path()));

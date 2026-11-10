@@ -17,11 +17,20 @@ test("Daftra journal workspace: draft, post, Arabic title/account search, full d
     .getByLabel("بيان القيد", { exact: true })
     .fill("إيرادات دورة التجويد");
   const rows = page.locator(".entry-lines tbody tr");
+  await page.getByRole("combobox", { name: "حساب السطر 1" }).click();
   await expect(
-    rows.nth(0).locator("select").nth(0).locator('option[value="liability"]'),
+    page.getByRole("listbox").getByRole("option", { name: /الالتزامات/ }),
   ).toHaveCount(0);
-  await rows.nth(0).locator("select").nth(0).selectOption("cash");
-  await rows.nth(1).locator("select").nth(0).selectOption("courses");
+  await page.getByRole("combobox", { name: "حساب السطر 1" }).fill("1101");
+  await page
+    .getByRole("listbox")
+    .getByRole("option", { name: /الصندوق/ })
+    .click();
+  await page.getByRole("combobox", { name: "حساب السطر 2" }).fill("4101");
+  await page
+    .getByRole("listbox")
+    .getByRole("option", { name: /إيرادات الدورات/ })
+    .click();
   await rows.nth(0).getByLabel("مدين", { exact: true }).fill("500");
   await rows.nth(1).getByLabel("دائن", { exact: true }).fill("500");
   await page.getByRole("button", { name: "حفظ مسودة", exact: true }).click();

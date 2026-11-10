@@ -26,6 +26,10 @@ import {
   Upload,
   Eye,
   EyeOff,
+  Landmark,
+  BookCopy,
+  BarChart3,
+  ArchiveRestore,
 } from "lucide-react";
 import {
   types,
@@ -50,6 +54,17 @@ import JournalFilters, { emptyJournalFilter } from "./JournalFilters";
 import JournalList, { journalLabel } from "./JournalList";
 import AccountChip from "./AccountChip";
 import useOverlayFocus from "./useOverlayFocus";
+import AccountSelect from "./AccountSelect";
+import FinancialReports from "./FinancialReports";
+import FinancePanel from "./FinancePanel";
+import TemplatesPanel from "./TemplatesPanel";
+import BackupPanel from "./BackupPanel";
+import { copyJournal, makeTemplate } from "./templates.js";
+import {
+  createBackupArchive,
+  downloadBackup,
+  executeRestore,
+} from "./backup.js";
 import JournalDetail from "./JournalDetail";
 import {
   allJournals,
@@ -67,7 +82,7 @@ import { logoBytes } from "./brand";
 import { exportReport } from "./exports";
 import { REMEMBER_KEY } from "./authStorage";
 import ImportPanel from "./ImportPanel";
-import { zipSync, strToU8 } from "fflate";
+
 import "@fontsource/cairo/400.css";
 import "@fontsource/cairo/600.css";
 import "@fontsource/cairo/700.css";
@@ -86,9 +101,14 @@ const pages = [
   ["entries", "القيود اليومية", BookOpen],
   ["accounts", "شجرة الحسابات", GitBranch],
   ["centers", "مراكز التكلفة", Layers],
+  ["finance", "خزائن وحسابات بنكية", Landmark],
+  ["templates", "قوالب القيود", BookCopy],
   ["ledger", "حساب الأستاذ", FileBarChart],
   ["trial", "ميزان المراجعة", Scale],
   ["income", "قائمة الدخل", TrendingUp],
+  ["comparison", "المقارنة الشهرية", BarChart3],
+  ["balance", "قائمة المركز المالي", Scale],
+  ["backup", "النسخ الاحتياطية", ArchiveRestore],
   ["audit", "سجل التعديلات", BookOpen],
 ];
 function App() {
@@ -210,42 +230,80 @@ function App() {
           );
     }
   }, [page, data]);
+  async function backupSnapshot(fresh) {
+    const blob = await createBackupArchive(
+      fresh,
+      async (attachment) => {
+        if (!cloud)
+          throw Error("تنزيل المرفقات يتطلب الاتصال بالتخزين السحابي");
+        const { data: file, error } = await client.storage
+          .from("attachments")
+          .download(attachment.path);
+        if (error) throw error;
+        return file.arrayBuffer();
+      },
+      await logoBytes(),
+    );
+    downloadBackup(blob, "ghaith-backup-" + today() + ".zip");
+  }
   async function backup() {
     await action(async () => {
-      const fresh = await readData();
-      const files = {
-        "accounting.json": strToU8(
-          JSON.stringify(
-            {
-              format: "ghaith-backup-v1",
-              exportedAt: new Date().toISOString(),
-              ...fresh,
-            },
-            null,
-            2,
-          ),
-        ),
-      };
-      for (const e of fresh.data.entries)
-        for (const a of e.attachments || []) {
-          if (!cloud) continue;
-          const { data: file, error } = await client.storage
-            .from("attachments")
-            .download(a.path);
-          if (error) throw error;
-          files["attachments/" + a.path] = new Uint8Array(
-            await file.arrayBuffer(),
-          );
-        }
-      files["ghaith-logo.png"] = await logoBytes();
-      const blob = new Blob([zipSync(files)]);
-      const u = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = u;
-      a.download = "ghaith-backup-" + today() + ".zip";
-      a.click();
-      URL.revokeObjectURL(u);
+      await backupSnapshot(await readData());
       setToast("تم تنزيل البيانات والمرفقات في نسخة احتياطية");
+    });
+  }
+  async function restoreBackup(plan, expectedVersion) {
+    setBusy(true);
+    setError("");
+    try {
+      if (!cloud && plan.files.length)
+        throw Error(
+          "استرجاع النسخ التي تحتوي ملفات مرفقة يتطلب التخزين السحابي",
+        );
+      const restored = await executeRestore(plan, expectedVersion, {
+        read: readData,
+        backup: backupSnapshot,
+        upload: (file) =>
+          upload(new File([file.bytes], file.name, { type: file.mimeType })),
+        save: saveData,
+        remove: (paths) => client.storage.from("attachments").remove(paths),
+      });
+      setData(restored.data);
+      setVersion(restored.version);
+      setJournalId(null);
+      setToast("تم استرجاع النسخة الاحتياطية");
+    } finally {
+      setBusy(false);
+    }
+  }
+  function openCopy(entry) {
+    const copy = copyJournal(entry, today());
+    setModal({
+      kind: "entry",
+      value: {
+        ...copy,
+        lines: copy.lines.map((l) => ({
+          ...l,
+          debit: l.debit ? String(l.debit / 100) : "",
+          credit: l.credit ? String(l.credit / 100) : "",
+        })),
+      },
+    });
+  }
+  function openTemplate(entry) {
+    const copy = copyJournal(entry, today());
+    setModal({
+      kind: "template",
+      value: {
+        ...copy,
+        templateId: entry.name ? entry.id : undefined,
+        templateName: entry.name || entry.description,
+        lines: copy.lines.map((l) => ({
+          ...l,
+          debit: l.debit ? String(l.debit / 100) : "",
+          credit: l.credit ? String(l.credit / 100) : "",
+        })),
+      },
     });
   }
   const accountRows = [];
@@ -623,7 +681,10 @@ function App() {
         <nav>
           {pages.map(([id, label, Icon], i) => (
             <React.Fragment key={id}>
-              {i === 4 && <p className="nav-label">التقارير المالية</p>}
+              {id === "finance" && <p className="nav-label">المالية</p>}
+              {id === "templates" && <p className="nav-label">القوالب</p>}
+              {id === "ledger" && <p className="nav-label">التقارير المالية</p>}
+              {id === "backup" && <p className="nav-label">إدارة البيانات</p>}
               <button
                 className={
                   page === id || (page === "journal" && id === "entries")
@@ -691,7 +752,14 @@ function App() {
           </div>
         </header>
         <main className="page-content" key={page}>
-          {!["ledger", "trial", "income", "journal"].includes(page) && (
+          {![
+            "ledger",
+            "trial",
+            "income",
+            "journal",
+            "balance",
+            "comparison",
+          ].includes(page) && (
             <div className="print-brand">
               <BrandLogo />
             </div>
@@ -753,6 +821,13 @@ function App() {
                         "إدارة وتنظيم جميع الحركات المحاسبية في مكان واحد.",
                       accounts: "نظّم حساباتك المالية في شجرة واضحة ومرنة.",
                       centers: "تابع إيرادات ومصروفات كل دورة أو مجموعة.",
+                      finance:
+                        "حساباتك البنكية وكشوفها الأصلية وحركاتها في غيث.",
+                      templates: "قوالب جاهزة للاستخدام في القيود المتكررة.",
+                      comparison: "قارن إيراداتك ومصروفاتك بين شهرين.",
+                      balance:
+                        "الأصول والالتزامات وحقوق الملكية حتى تاريخ محدد.",
+                      backup: "تنزيل نسخة من بياناتك أو استرجاع نسخة سابقة.",
                       ledger: "تفاصيل حركة الحساب والرصيد خلال الفترة المحددة.",
                       trial: "مراجعة أرصدة الحسابات وحركاتها المدينة والدائنة.",
                       income: "متابعة الإيرادات والمصروفات وصافي نتائج النشاط.",
@@ -765,7 +840,16 @@ function App() {
               <div
                 className={
                   "actions " +
-                  (page === "entries" ? "journal-generic-actions" : "")
+                  ([
+                    "entries",
+                    "finance",
+                    "templates",
+                    "balance",
+                    "comparison",
+                    "backup",
+                  ].includes(page)
+                    ? "journal-generic-actions"
+                    : "")
                 }
               >
                 {["dashboard", "entries"].includes(page) ? (
@@ -815,8 +899,72 @@ function App() {
               onEdit={editJournal}
               onState={journalAction}
               onAccountOpen={openAccountLedger}
+              onCopy={openCopy}
+              onTemplate={openTemplate}
               onExport={(e) => downloadJournals([e], "قيد يومية")}
               busy={busy}
+            />
+          ) : ["balance", "comparison"].includes(page) ? (
+            <FinancialReports
+              key={page}
+              kind={page}
+              data={data}
+              onAccountOpen={openAccountLedger}
+            />
+          ) : page === "finance" ? (
+            <FinancePanel
+              data={data}
+              onSave={persist}
+              onAccountOpen={openAccountLedger}
+              onJournalOpen={openJournal}
+            />
+          ) : page === "backup" ? (
+            <BackupPanel
+              data={data}
+              version={version}
+              busy={busy}
+              onBackup={backup}
+              onRestore={restoreBackup}
+            />
+          ) : page === "templates" ? (
+            <TemplatesPanel
+              data={data}
+              busy={busy}
+              onUse={openCopy}
+              onEdit={openTemplate}
+              onNew={() =>
+                openTemplate({
+                  date: today(),
+                  description: "",
+                  lines: [
+                    {
+                      accountId: "",
+                      centerId: "",
+                      description: "",
+                      debit: 0,
+                      credit: 0,
+                    },
+                    {
+                      accountId: "",
+                      centerId: "",
+                      description: "",
+                      debit: 0,
+                      credit: 0,
+                    },
+                  ],
+                })
+              }
+              onDelete={(t) =>
+                action(async () => {
+                  if (confirm("حذف القالب «" + t.name + "»؟"))
+                    await persist({
+                      ...data,
+                      journalTemplates: (data.journalTemplates || []).filter(
+                        (x) => x.id !== t.id,
+                      ),
+                    });
+                })
+              }
             />
           ) : page === "dashboard" ? (
             <>
@@ -1199,6 +1347,8 @@ function App() {
                     data={data}
                     open={openJournal}
                     onAccountOpen={openAccountLedger}
+                    onCopy={openCopy}
+                    onTemplate={openTemplate}
                     onState={journalAction}
                     busy={busy}
                   />
@@ -1654,7 +1804,9 @@ function App() {
             tabIndex={-1}
             className={
               "modal " +
-              (["entry", "view", "import"].includes(modal.kind) ? "wide" : "")
+              (["entry", "view", "import", "template"].includes(modal.kind)
+                ? "wide"
+                : "")
             }
             role="dialog"
             aria-modal="true"
@@ -1668,6 +1820,7 @@ function App() {
                     {
                       import: "استيراد القيود اليومية",
                       entry: "إضافة قيد يومي",
+                      template: "قالب قيد يومي",
                       view: `قيد يومي #${modal.value.number}`,
                       account: "بيانات الحساب",
                       center: "بيانات مركز التكلفة",
@@ -1705,11 +1858,12 @@ function App() {
                   })
                 }
               />
-            ) : ["entry", "view"].includes(modal.kind) ? (
+            ) : ["entry", "view", "template"].includes(modal.kind) ? (
               <EntryForm
                 entry={modal.value}
                 data={data}
                 readOnly={modal.kind === "view"}
+                asTemplate={modal.kind === "template"}
                 busy={busy}
                 savedDocuments={data.entryDocuments?.[modal.value.id]}
                 onSaveLinks={async (links) => {
@@ -1733,6 +1887,26 @@ function App() {
                 }}
                 onSave={(entry, files, post) =>
                   action(async () => {
+                    if (modal.kind === "template") {
+                      const template = makeTemplate(
+                        entry,
+                        entry.templateName,
+                        data,
+                      );
+                      template.id = entry.templateId || template.id;
+                      await persist({
+                        ...data,
+                        journalTemplates: [
+                          ...(data.journalTemplates || []).filter(
+                            (t) => t.id !== template.id,
+                          ),
+                          template,
+                        ],
+                      });
+                      setModal(null);
+                      setToast("تم حفظ القالب");
+                      return;
+                    }
                     if (post) validateEntry(entry, data.accounts, data.centers);
                     else validateDraft(entry, data.accounts, data.centers);
                     const uploaded = [];
@@ -2057,6 +2231,7 @@ function MasterForm({ kind, initial, data, onSave, busy }) {
   );
 }
 function EntryForm({
+  asTemplate = false,
   entry,
   data,
   readOnly,
@@ -2143,6 +2318,16 @@ function EntryForm({
             busy={busy}
           />
         )}
+        {asTemplate && (
+          <Field label="اسم القالب">
+            <input
+              required
+              value={v.templateName || ""}
+              onChange={(e) => setV({ ...v, templateName: e.target.value })}
+              placeholder="مثل: رواتب المعلمين"
+            />
+          </Field>
+        )}
         <div className="entry-top">
           <Field label="تاريخ القيد">
             <input
@@ -2185,18 +2370,13 @@ function EntryForm({
                 <tr key={i}>
                   <td>{i + 1}</td>
                   <td>
-                    <select
+                    <AccountSelect
+                      label={"حساب السطر " + (i + 1)}
                       disabled={readOnly}
+                      accounts={postingAccounts(data.accounts)}
                       value={l.accountId}
-                      onChange={(e) => change(i, "accountId", e.target.value)}
-                    >
-                      <option value="">اختر الحساب</option>
-                      {postingAccounts(data.accounts).map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.code} — {a.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(id) => change(i, "accountId", id)}
+                    />
                   </td>
                   <td>
                     <input
@@ -2280,7 +2460,7 @@ function EntryForm({
               : `الفرق: ${money(Math.abs(d - c))} ر.س`}
           </span>
         </div>
-        {!readOnly ? (
+        {!readOnly && !asTemplate ? (
           <label className="upload">
             <Paperclip size={22} />
             <strong>إرفاق مستندات القيد</strong>
@@ -2318,21 +2498,27 @@ function EntryForm({
       </div>
       {!readOnly && (
         <div className="modal-footer">
-          <span className="muted">المسودة لا تؤثر في الحسابات حتى ترحيلها</span>
+          <span className="muted">
+            {asTemplate
+              ? "القالب لا يُنشئ حركة محاسبية"
+              : "المسودة لا تؤثر في الحسابات حتى ترحيلها"}
+          </span>
           <div className="entry-save-actions">
             <button type="submit" name="outcome" value="draft" disabled={busy}>
               <Save size={17} />
-              {busy ? "جاري الحفظ…" : "حفظ مسودة"}
+              {busy ? "جاري الحفظ…" : asTemplate ? "حفظ القالب" : "حفظ مسودة"}
             </button>
-            <button
-              type="submit"
-              name="outcome"
-              value="post"
-              className="primary"
-              disabled={busy}
-            >
-              حفظ وترحيل
-            </button>
+            {!asTemplate && (
+              <button
+                type="submit"
+                name="outcome"
+                value="post"
+                className="primary"
+                disabled={busy}
+              >
+                حفظ وترحيل
+              </button>
+            )}
           </div>
         </div>
       )}

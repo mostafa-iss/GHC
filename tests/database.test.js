@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
 import { seed } from "../src/accounting.js";
+import { restoredState } from "../src/backup.js";
 test("PostgreSQL validates posted journals, drafts, permanent deletion, RLS, concurrent writes and one-time cutover", async () => {
   const db = new PGlite();
   await db.exec(
@@ -122,5 +123,22 @@ test("PostgreSQL validates posted journals, drafts, permanent deletion, RLS, con
   assert.equal(reset.draftEntries.length, 0);
   assert.equal(reset.accounts.length, data.accounts.length);
   assert.equal(reset.journalWorkflowVersion, 2);
+  await db.exec("set role authenticated");
+  version = (await db.query("select version from accounting_state")).rows[0]
+    .version;
+  await save(data);
+  const snapshot = structuredClone(data);
+  snapshot.entries[0].description = "نسخة سابقة مسترجعة";
+  Object.assign(
+    snapshot.accounts.find((a) => a.id === "cash"),
+    { type: "expense", parentId: "expense" },
+  );
+  const restored = restoredState(snapshot);
+  await save(restored);
+  const saved = (await db.query("select data from accounting_state")).rows[0]
+    .data;
+  assert.equal(saved.entries[0].description, "نسخة سابقة مسترجعة");
+  assert.equal(saved.accounts.find((a) => a.code === "1101").type, "expense");
+  assert.equal(saved.entries[0].number, 7);
   await db.close();
 });

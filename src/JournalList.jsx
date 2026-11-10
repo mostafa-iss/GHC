@@ -20,6 +20,8 @@ export default function JournalList({
   onState,
   busy,
   onAccountOpen,
+  onCopy,
+  onTemplate,
   queryKey,
 }) {
   const [page, setPage] = useState(0),
@@ -146,6 +148,22 @@ export default function JournalList({
                 </button>
                 {menu === e.id && (
                   <div className="journal-menu">
+                    <button
+                      onClick={() => {
+                        setMenu(null);
+                        onCopy(e);
+                      }}
+                    >
+                      نسخ القيد
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMenu(null);
+                        onTemplate(e);
+                      }}
+                    >
+                      حفظ كقالب
+                    </button>
                     <button
                       onClick={() => {
                         open(e);

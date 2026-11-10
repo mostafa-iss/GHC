@@ -15,11 +15,11 @@ export const client = cloud
   : null;
 const KEY = "ghaith-demo-v1";
 export async function readData() {
-  if (!cloud)
-    return {
-      data: JSON.parse(localStorage.getItem(KEY) || "null") || seed(),
-      version: 0,
-    };
+  if (!cloud) {
+    const { _localVersion = 0, ...data } =
+      JSON.parse(localStorage.getItem(KEY) || "null") || seed();
+    return { data, version: _localVersion };
+  }
   const { data, error } = await client
     .from("accounting_state")
     .select("data,version")
@@ -30,7 +30,15 @@ export async function readData() {
 }
 export async function saveData(data, version) {
   if (!cloud) {
-    localStorage.setItem(KEY, JSON.stringify(data));
+    const current = JSON.parse(localStorage.getItem(KEY) || "null");
+    if ((current?._localVersion || 0) !== version)
+      throw Error(
+        "تم تعديل البيانات من نافذة أخرى. أعد تحميل البيانات قبل الحفظ.",
+      );
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ ...data, _localVersion: version + 1 }),
+    );
     return version + 1;
   }
   if (data.journalWorkflowVersion !== 2)

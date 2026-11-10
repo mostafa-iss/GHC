@@ -9,6 +9,8 @@ import {
   Send,
   FilePenLine,
   RotateCcw,
+  Copy,
+  BookCopy,
 } from "lucide-react";
 import { money } from "./accounting";
 import { journalLabel } from "./JournalList";
@@ -23,6 +25,8 @@ export default function JournalDetail({
   onState,
   onExport,
   onAccountOpen,
+  onCopy,
+  onTemplate,
   busy,
 }) {
   const [tab, setTab] = useState("entry");
@@ -75,6 +79,14 @@ export default function JournalDetail({
       </div>
       <section className="journal-document">
         <div className="journal-detail-actions">
+          <button onClick={() => onCopy(entry)}>
+            <Copy size={16} />
+            نسخ القيد
+          </button>
+          <button onClick={() => onTemplate(entry)}>
+            <BookCopy size={16} />
+            حفظ كقالب
+          </button>
           {entry.status !== "deleted" && (
             <>
               <button disabled={busy} onClick={() => onEdit(entry)}>
