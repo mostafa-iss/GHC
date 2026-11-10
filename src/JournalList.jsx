@@ -20,6 +20,7 @@ export default function JournalList({
   onState,
   busy,
   onAccountOpen,
+  queryKey,
 }) {
   const [page, setPage] = useState(0),
     [menu, setMenu] = useState(null);
@@ -27,7 +28,22 @@ export default function JournalList({
   useEffect(() => {
     setPage(0);
     setMenu(null);
-  }, [entries.length]);
+  }, [entries.length, queryKey]);
+  useEffect(() => {
+    if (!menu) return;
+    const closeOutside = (event) => {
+      if (!event.target.closest(".journal-more")) setMenu(null);
+    };
+    const escape = (event) => {
+      if (event.key === "Escape") setMenu(null);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [menu]);
   const total = Math.max(1, Math.ceil(entries.length / size));
   const actualPage = Math.min(page, total - 1);
   const account = (id) =>
@@ -123,6 +139,7 @@ export default function JournalList({
               <div className="journal-more">
                 <button
                   aria-label={"إجراءات " + journalLabel(e)}
+                  aria-expanded={menu === e.id}
                   onClick={() => setMenu(menu === e.id ? null : e.id)}
                 >
                   <MoreHorizontal size={21} />

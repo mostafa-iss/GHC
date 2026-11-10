@@ -1,0 +1,158 @@
+/* Print rules always follow screen styles. */
+@media print {
+  aside,
+  header,
+  .actions,
+  .filters,
+  footer,
+  .demo-banner,
+  .toast,
+  .modal-backdrop,
+  button {
+    display: none !important;
+  }
+  .main {
+    margin: 0;
+  }
+  main {
+    padding: 0;
+  }
+  .card {
+    border: 0;
+    box-shadow: none;
+  }
+  .table-scroll {
+    overflow: visible;
+  }
+  table {
+    font-size: 9px;
+  }
+  td,
+  th {
+    padding: 7px;
+  }
+  body {
+    background: white;
+  }
+  .page-heading p,
+  .eyebrow {
+    display: none;
+  }
+  .page-heading h1 {
+    font-size: 20px;
+  }
+  .report-section {
+    print-color-adjust: exact;
+  }
+  .report-title .report-logo {
+    display: block !important;
+    height: 100px;
+    width: 125px;
+  }
+  .ghaith-logo {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .print-brand {
+    display: block;
+    text-align: center;
+    margin: 0 auto 16px;
+  }
+  .print-brand .ghaith-logo {
+    height: 100px;
+    width: 140px;
+    margin: auto;
+  }
+  .report-title {
+    break-inside: avoid;
+    background: white;
+  }
+  .documents-field {
+    break-inside: avoid;
+    background: white;
+  }
+  .document-chips a {
+    color: #24384b;
+    text-decoration: underline;
+    border: 0;
+  }
+  .documents-heading button,
+  .document-actions {
+    display: none !important;
+  }
+  .document-chips a:after {
+    content: " (" attr(href) ")";
+    font: 9px Arial;
+    direction: ltr;
+    word-break: break-all;
+  }
+  .journal-detail-heading,
+  .journal-detail-actions,
+  .journal-detail-tabs,
+  .journal-history,
+  .journal-toolbar,
+  .journal-filters,
+  .journal-reset {
+    display: none !important;
+  }
+  .journal-paper-canvas {
+    background: white;
+    margin: 0;
+    padding: 0;
+    min-height: 0;
+  }
+  .journal-paper {
+    max-width: none;
+    padding: 10px;
+    min-height: 0;
+    box-shadow: none;
+    border: 0;
+  }
+  .journal-document {
+    border: 0;
+    margin: 0;
+  }
+  .journal-paper-heading {
+    break-inside: avoid;
+  }
+  .journal-paper-table {
+    min-width: 0;
+  }
+  .journal-attachments {
+    break-before: page;
+    border: 0;
+  }
+  .attachment-section {
+    break-inside: avoid;
+  }
+  .attachment-preview {
+    height: 145px;
+  }
+  .journal-detail > .documents-field {
+    display: none;
+  }
+  .account-chip {
+    display: inline-block !important;
+    padding: 0;
+    border: 0;
+    background: none !important;
+    color: #24384b;
+  }
+  .sidebar-overlay,
+  .sidebar-close {
+    display: none !important;
+  }
+  .page-content {
+    animation: none;
+  }
+  th,
+  td {
+    color: #172e43;
+  }
+  .report-title + .table-scroll {
+    max-height: none;
+  }
+  .table-scroll thead {
+    position: static;
+  }
+}

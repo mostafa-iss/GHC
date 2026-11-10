@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useId } from "react";
+import React, { useState, useEffect, useId, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import {
   LayoutDashboard,
@@ -47,8 +47,9 @@ import {
   openAttachment,
 } from "./store";
 import JournalFilters, { emptyJournalFilter } from "./JournalFilters";
-import JournalList from "./JournalList";
+import JournalList, { journalLabel } from "./JournalList";
 import AccountChip from "./AccountChip";
+import useOverlayFocus from "./useOverlayFocus";
 import JournalDetail from "./JournalDetail";
 import {
   allJournals,
@@ -111,6 +112,29 @@ function App() {
     [side, setSide] = useState(false),
     [audits, setAudits] = useState([]),
     [collapsed, setCollapsed] = useState(new Set());
+  const dialogRef = useRef(null),
+    sidebarRef = useRef(null);
+  useOverlayFocus(Boolean(modal), dialogRef);
+  useOverlayFocus(side && !modal, sidebarRef);
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }, [page, journalId]);
+  useEffect(() => {
+    if (!side) return;
+    const close = (event) => {
+      if (event.key === "Escape") setSide(false);
+    };
+    const desktop = window.matchMedia("(min-width: 761px)");
+    const resize = () => {
+      if (desktop.matches) setSide(false);
+    };
+    document.addEventListener("keydown", close);
+    desktop.addEventListener("change", resize);
+    return () => {
+      document.removeEventListener("keydown", close);
+      desktop.removeEventListener("change", resize);
+    };
+  }, [side]);
   useEffect(() => {
     if (!cloud) {
       setLoading(false);
@@ -359,21 +383,37 @@ function App() {
       },
     });
   }
-  const rows = reportRows(data, filter);
-  const visibleEntries = filterJournals(data, filter);
-  const allEntries = allJournals(data);
+  const rows = useMemo(
+    () =>
+      reportRows(data, {
+        from: filter.from,
+        to: filter.to,
+        accountId: filter.accountId,
+        centerId: filter.centerId,
+      }),
+    [data, filter.from, filter.to, filter.accountId, filter.centerId],
+  );
+  const visibleEntries = useMemo(
+    () => filterJournals(data, filter),
+    [data, filter],
+  );
+  const allEntries = useMemo(() => allJournals(data), [data]);
   const currentJournal = allEntries.find((e) => e.id === journalId);
-  const trialRows = rows.map((a) => {
-    const ids = descendants(data.accounts, a.id);
-    const items = rows.filter((r) => ids.has(r.id));
-    return {
-      ...a,
-      opening: items.reduce((s, r) => s + r.opening, 0),
-      debit: items.reduce((s, r) => s + r.debit, 0),
-      credit: items.reduce((s, r) => s + r.credit, 0),
-      closing: items.reduce((s, r) => s + r.closing, 0),
-    };
-  });
+  const trialRows = useMemo(
+    () =>
+      rows.map((a) => {
+        const ids = descendants(data.accounts, a.id);
+        const items = rows.filter((r) => ids.has(r.id));
+        return {
+          ...a,
+          opening: items.reduce((s, r) => s + r.opening, 0),
+          debit: items.reduce((s, r) => s + r.debit, 0),
+          credit: items.reduce((s, r) => s + r.credit, 0),
+          closing: items.reduce((s, r) => s + r.closing, 0),
+        };
+      }),
+    [rows, data.accounts],
+  );
   const totals = rows.reduce(
     (t, r) => ({ debit: t.debit + r.debit, credit: t.credit + r.credit }),
     { debit: 0, credit: 0 },
@@ -528,7 +568,14 @@ function App() {
       });
     });
   }
-  if (loading) return <div className="loading">جاري التحميل…</div>;
+  if (loading)
+    return (
+      <div className="loading" role="status">
+        <BrandLogo />
+        <span className="loading-spinner" />
+        <span>جاري تحميل غيث…</span>
+      </div>
+    );
   if (!session)
     return (
       <Login
@@ -544,17 +591,50 @@ function App() {
         (["entries", "journal"].includes(page) ? "journal-workspace" : "")
       }
     >
-      <aside className={side ? "open" : ""}>
-        <a className="brand" onClick={() => nav("dashboard")}>
+      {side && (
+        <button
+          className="sidebar-overlay"
+          aria-label="إغلاق القائمة"
+          tabIndex={-1}
+          onClick={() => setSide(false)}
+        />
+      )}
+      <aside
+        id="main-sidebar"
+        ref={sidebarRef}
+        className={side ? "open" : ""}
+        inert={modal ? true : undefined}
+      >
+        <button
+          className="icon sidebar-close"
+          aria-label="إغلاق قائمة التنقل"
+          onClick={() => setSide(false)}
+        >
+          <X size={19} />
+        </button>
+        <button
+          className="brand"
+          aria-label="غيث — الصفحة الرئيسية"
+          onClick={() => nav("dashboard")}
+        >
           <BrandLogo className="sidebar-logo" />
-        </a>
+        </button>
         <p className="nav-label">القائمة الرئيسية</p>
         <nav>
           {pages.map(([id, label, Icon], i) => (
             <React.Fragment key={id}>
               {i === 4 && <p className="nav-label">التقارير المالية</p>}
               <button
-                className={page === id ? "active" : ""}
+                className={
+                  page === id || (page === "journal" && id === "entries")
+                    ? "active"
+                    : ""
+                }
+                aria-current={
+                  page === id || (page === "journal" && id === "entries")
+                    ? "page"
+                    : undefined
+                }
                 onClick={() => nav(id)}
               >
                 <Icon size={19} />
@@ -571,10 +651,16 @@ function App() {
           </button>
         </div>
       </aside>
-      <div className="main">
+      <div className="main" inert={modal || side ? true : undefined}>
         <header>
           <div className="breadcrumb">
-            <button className="icon mobile" onClick={() => setSide(!side)}>
+            <button
+              className="icon mobile"
+              aria-label="فتح قائمة التنقل"
+              aria-expanded={side}
+              aria-controls="main-sidebar"
+              onClick={() => setSide(!side)}
+            >
               <Menu />
             </button>
             غيث <ChevronLeft size={14} />
@@ -604,7 +690,7 @@ function App() {
             </button>
           </div>
         </header>
-        <main>
+        <main className="page-content" key={page}>
           {!["ledger", "trial", "income", "journal"].includes(page) && (
             <div className="print-brand">
               <BrandLogo />
@@ -842,12 +928,21 @@ function App() {
                   <CheckCircle2 />
                 </span>
                 <div>
-                  <h3>حسابات واضحة، قرارات أفضل</h3>
+                  <h3>متابعة المسودات</h3>
                   <p>
-                    ابدأ بإضافة مراكز التكلفة الخاصة بدوراتك، ثم سجّل قيودك
-                    اليومية لمتابعة النتائج.
+                    {allEntries.filter((e) => e.status === "draft").length
+                      ? `لديك ${allEntries.filter((e) => e.status === "draft").length} مسودة جاهزة للمراجعة قبل الترحيل.`
+                      : "لا توجد مسودات معلّقة للمراجعة حاليًا."}
                   </p>
                 </div>
+                <button
+                  onClick={() => {
+                    nav("entries");
+                    setFilter({ ...emptyJournalFilter, status: "draft" });
+                  }}
+                >
+                  مراجعة المسودات <ChevronLeft size={16} />
+                </button>
               </div>
             </>
           ) : (
@@ -921,7 +1016,10 @@ function App() {
                         <select
                           value={filter.accountId}
                           onChange={(e) =>
-                            setFilter({ ...filter, accountId: e.target.value })
+                            setFilter({
+                              ...filter,
+                              accountId: e.target.value,
+                            })
                           }
                         >
                           <option value="">
@@ -980,7 +1078,9 @@ function App() {
                               <td>
                                 {new Date(a.created_at || a.at).toLocaleString(
                                   "ar-SA",
-                                  { calendar: "gregory" },
+                                  {
+                                    calendar: "gregory",
+                                  },
                                 )}
                               </td>
                               <td>ghaith (حساب مشترك)</td>
@@ -1094,7 +1194,7 @@ function App() {
                     </button>
                   </div>
                   <JournalList
-                    key={JSON.stringify(filter)}
+                    queryKey={JSON.stringify(filter)}
                     entries={visibleEntries}
                     data={data}
                     open={openJournal}
@@ -1133,7 +1233,9 @@ function App() {
                           >
                             <td className="numeric">{a.code}</td>
                             <td
-                              style={{ paddingInlineStart: 18 + a.depth * 18 }}
+                              style={{
+                                paddingInlineStart: 18 + a.depth * 18,
+                              }}
                             >
                               {data.accounts.some(
                                 (x) => x.parentId === a.id,
@@ -1177,6 +1279,14 @@ function App() {
                             </td>
                             <td>
                               {a.parentId ? name(a.parentId) : "حساب رئيسي"}
+                            </td>
+                            <td>
+                              {(a.normalBalance ||
+                                (["asset", "expense"].includes(a.type)
+                                  ? "debit"
+                                  : "credit")) === "debit"
+                                ? "مدين"
+                                : "دائن"}
                             </td>
                             <td>
                               <button
@@ -1540,17 +1650,20 @@ function App() {
       {modal && (
         <div className="modal-backdrop">
           <section
+            ref={dialogRef}
+            tabIndex={-1}
             className={
               "modal " +
               (["entry", "view", "import"].includes(modal.kind) ? "wide" : "")
             }
             role="dialog"
             aria-modal="true"
+            aria-labelledby="dialog-title"
           >
             <div className="modal-heading">
               <div>
                 <span className="eyebrow">الحسابات العامة</span>
-                <h2>
+                <h2 id="dialog-title">
                   {
                     {
                       import: "استيراد القيود اليومية",
@@ -1562,7 +1675,12 @@ function App() {
                   }
                 </h2>
               </div>
-              <button className="icon" onClick={() => setModal(null)}>
+              <button
+                className="icon"
+                aria-label="إغلاق النافذة"
+                disabled={busy}
+                onClick={() => setModal(null)}
+              >
                 <X />
               </button>
             </div>
@@ -1786,7 +1904,7 @@ function EntryTable({
             <tr key={e.id}>
               <td>
                 <button className="link" onClick={() => open(e)}>
-                  #{String(e.number).padStart(4, "0")}
+                  {journalLabel(e)}
                 </button>
               </td>
               <td>{e.date}</td>
@@ -1812,7 +1930,9 @@ function EntryTable({
                 {money(e.lines.reduce((s, l) => s + l.debit, 0))}
               </td>
               <td>
-                <span className="badge">متوازن</span>
+                <span className={"journal-state " + e.status}>
+                  {e.status === "draft" ? "مسودة" : "مرحّل"}
+                </span>
               </td>
               <td>
                 {entryDocuments(e, documents[e.id]).length > 0 ? (

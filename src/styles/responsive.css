@@ -1,0 +1,420 @@
+/* Breakpoints run from wide to narrow; each component is defined once per breakpoint. */
+@media (min-width: 1600px) {
+  main {
+    padding-top: 38px;
+  }
+  .stats {
+    gap: 24px;
+  }
+  .stat {
+    padding: 25px;
+  }
+}
+@media (max-width: 1150px) {
+  aside {
+    width: 210px;
+  }
+  .main {
+    margin-right: 210px;
+  }
+  main {
+    padding: 22px;
+  }
+  .stats {
+    gap: 12px;
+  }
+  .stat {
+    padding: 14px;
+  }
+  .stat strong {
+    font-size: 20px;
+  }
+  .filter-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  header {
+    padding: 0 22px;
+  }
+  main,
+  .journal-workspace main {
+    padding: 24px;
+  }
+  .journal-filter-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .quick {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1000px) {
+  .journal-filter-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .journal-row {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .journal-row-main {
+    width: calc(100% - 65px);
+    order: 0;
+  }
+  .journal-more {
+    margin-right: auto;
+    order: 1;
+  }
+  .journal-accounts {
+    order: 2;
+    flex: 1;
+    justify-content: flex-start;
+  }
+  .journal-row-total {
+    order: 3;
+  }
+  .journal-detail-flow {
+    max-width: 100%;
+  }
+}
+@media (max-width: 760px) {
+  aside {
+    visibility: hidden;
+    transform: translateX(100%);
+    transition: 0.2s;
+  }
+  aside.open {
+    visibility: visible;
+    transform: translateX(0);
+    box-shadow: -10px 0 50px #0002;
+  }
+  .main {
+    margin-right: 0;
+  }
+  .mobile {
+    display: inline-flex !important;
+  }
+  header {
+    padding: 0 12px;
+    height: 54px;
+  }
+  .breadcrumb {
+    font-size: 9px;
+    gap: 5px;
+  }
+  .profile {
+    gap: 7px;
+  }
+  .profile > span:not(.avatar) {
+    display: none;
+  }
+  main {
+    padding: 15px;
+  }
+  .page-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  .page-heading h1 {
+    font-size: 22px;
+  }
+  .page-heading p {
+    font-size: 12px;
+  }
+  .actions {
+    flex-wrap: wrap;
+  }
+  .actions button {
+    font-size: 11px;
+    padding: 8px 12px;
+  }
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .stat {
+    padding: 13px;
+  }
+  .stat-top {
+    font-size: 11px;
+    gap: 6px;
+  }
+  .stat strong {
+    font-size: 23px;
+  }
+  .stat-icon {
+    width: 29px;
+    height: 29px;
+    flex-shrink: 0;
+  }
+  .filter-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .demo-banner {
+    font-size: 9px;
+    line-height: 1.8;
+  }
+  .info-card {
+    padding: 15px;
+    gap: 12px;
+  }
+  .info-card p {
+    font-size: 12px;
+  }
+  .card-title {
+    padding: 14px;
+  }
+  .modal-backdrop {
+    padding: 8px;
+  }
+  .modal {
+    max-height: calc(100dvh - 16px);
+    border-radius: 14px;
+  }
+  .modal-heading {
+    padding: 16px;
+  }
+  .form-body {
+    padding: 14px;
+  }
+  .entry-top {
+    grid-template-columns: 1fr 1fr;
+  }
+  .entry-top .field:last-child {
+    grid-column: 1/-1;
+  }
+  .modal-footer {
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .modal-footer > .muted {
+    display: none;
+  }
+  .login-card {
+    padding: 24px;
+  }
+  .report-title {
+    padding: 18px;
+  }
+  .import-panel {
+    padding: 14px;
+  }
+  .import-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .import-panel > .modal-footer {
+    margin: 18px -14px 12px;
+    flex-wrap: wrap;
+  }
+  .import-panel .modal-footer button {
+    font-size: 11px;
+  }
+  .login-logo {
+    height: 170px;
+    width: 215px;
+  }
+  .login h1 {
+    font-size: 21px;
+  }
+  .login:before {
+    left: -80px;
+  }
+  .login:after {
+    right: -70px;
+  }
+  .documents-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .documents-field {
+    padding: 13px;
+  }
+  .report-title .report-logo {
+    height: 98px;
+  }
+  .login-options {
+    gap: 10px;
+  }
+  .journal-filter-fields {
+    gap: 14px;
+    grid-template-columns: 1fr;
+    padding: 18px;
+  }
+  .journal-paper {
+    padding: 18px;
+  }
+  .journal-paper-heading h2 {
+    font-size: 18px;
+  }
+  .journal-paper-heading .ghaith-logo {
+    height: 70px;
+    width: 80px;
+    flex-shrink: 0;
+  }
+  .journal-detail-actions {
+    padding: 12px;
+  }
+  .journal-accounts .account-chip {
+    font-size: 10px;
+    padding: 7px;
+  }
+  .journal-toolbar {
+    gap: 6px;
+  }
+  .journal-toolbar .draft-count {
+    font-size: 10px;
+    margin-inline-start: 0;
+  }
+  .journal-results-heading {
+    padding: 10px;
+  }
+  .journal-paper-table {
+    min-width: 630px;
+  }
+  .attachment-card {
+    width: 140px;
+  }
+  .drive-card {
+    width: 140px;
+  }
+  .entry-save-actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .journal-filter-actions > div {
+    gap: 5px;
+  }
+  .attachment-grid {
+    gap: 10px;
+  }
+  .attachment-grid > .attachment-card,
+  .attachment-grid > .drive-card {
+    flex-basis: 140px;
+    flex: 0 1 calc(50% - 5px);
+    width: calc(50% - 5px);
+    min-width: 0;
+  }
+  .import-stats.journals-only {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  main,
+  .journal-workspace main {
+    padding: 20px 14px 32px;
+  }
+  .brand {
+    height: 130px;
+  }
+  .sidebar-logo {
+    height: 100px;
+  }
+  .sidebar-close {
+    display: inline-flex;
+    position: absolute;
+    top: 8px;
+    left: 8px;
+  }
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    border: 0;
+    border-radius: 0;
+    background: #172e4366;
+    z-index: 29;
+    backdrop-filter: blur(2px);
+  }
+  .sidebar-overlay:hover {
+    background: #172e4366;
+  }
+  .stat-caption {
+    font-size: 10px;
+  }
+  .quick {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .quick > button {
+    padding: 12px;
+  }
+  .journal-filter-actions {
+    padding: 12px 18px;
+  }
+  .live-filter-hint {
+    display: none;
+  }
+  .journal-row {
+    padding: 16px;
+  }
+  .journal-accounts {
+    flex-wrap: wrap;
+  }
+  .journal-detail-heading {
+    margin: 0 0 20px;
+    gap: 16px;
+  }
+  .journal-detail-heading h1 {
+    font-size: 23px;
+  }
+  .journal-detail-flow {
+    max-width: 100%;
+  }
+  .journal-paper-canvas {
+    padding: 14px;
+  }
+  .journal-paper-heading {
+    align-items: flex-start;
+  }
+  .attachment-section {
+    padding: 16px;
+  }
+  .info-card > button {
+    width: 100%;
+  }
+  .entry-save-actions button {
+    flex: 1;
+  }
+  .toast {
+    top: 66px;
+    left: 16px;
+    right: 16px;
+  }
+  .filters {
+    padding: 18px;
+  }
+  .login {
+    padding: 16px;
+  }
+}
+@media (max-width: 420px) {
+  .stat-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+  }
+  .stat-icon svg {
+    width: 16px;
+  }
+  .stat strong {
+    font-size: 21px;
+  }
+  .stat {
+    padding: 14px 12px;
+  }
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+  .journal-accounts {
+    flex-basis: 100%;
+  }
+  .journal-row-total {
+    margin-inline-start: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
