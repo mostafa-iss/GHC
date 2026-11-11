@@ -8,6 +8,7 @@ function fixture() {
     "سيستم تعليمي",
     "بنك تجريبي",
     "بنك تجريبي - البطاقة",
+    "PayPal",
     "اشتراك أنظمة",
     "رأس المال",
     "رواتب مستحقة الدفع",
@@ -89,6 +90,43 @@ test("chart folders, search, running ledger, linked journals, export, account ed
     .click();
   await expect(page.locator(".chart-content-heading h2")).toHaveText("الأصول");
   await expect(page.locator(".chart-account-row")).toHaveCount(2);
+  await page
+    .getByRole("button", { name: "فتح حساب الأصول المتداولة", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "فتح حساب النقدية والبنوك والمحافظ",
+      exact: true,
+    })
+    .click();
+  await expect(page.locator(".chart-account-row")).toHaveCount(3);
+  const positions = await page
+    .locator(".chart-account-row")
+    .evaluateAll((rows) =>
+      rows.map((row) => ({
+        icon: row
+          .querySelector(".chart-account-open > svg")
+          .getBoundingClientRect().right,
+        name: row
+          .querySelector(".chart-account-open strong")
+          .getBoundingClientRect().right,
+        code: row
+          .querySelector(".chart-account-open small")
+          .getBoundingClientRect().right,
+        balance: row.querySelector(".chart-balance").getBoundingClientRect()
+          .right,
+      })),
+    );
+  for (const key of ["icon", "name", "code", "balance"])
+    expect(
+      Math.max(...positions.map((p) => p[key])) -
+        Math.min(...positions.map((p) => p[key])),
+    ).toBeLessThan(1);
+  await page.screenshot({
+    path: "/workspace/artifacts/ghaith-chart-alignment.png",
+    fullPage: true,
+    animations: "disabled",
+  });
   await page.getByLabel("بحث في شجرة الحسابات").fill("بنك تجريبي");
   await expect(page.locator(".chart-account-row")).toHaveCount(2);
   await page

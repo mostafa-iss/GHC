@@ -103,15 +103,16 @@ test("account chips open the complete posted ledger from home, filtered journals
       "",
     );
     await expect(page.locator(".report-title")).toContainText("جميع الفترات");
-    await expect(page.locator("tbody tr")).toHaveCount(4);
+    await expect(page.locator(".ledger-line")).toHaveCount(3);
     for (const description of ["عملية قديمة", "حركة ثانية", "حركة مستقبلية"])
       await expect(page.locator("tbody")).toContainText(description);
     await expect(page.locator("tbody")).not.toContainText("مسودة مستبعدة");
     await expect(page.locator("tfoot td")).toHaveText([
-      "الإجمالي",
+      "الإجمالي (SAR)",
       "150.00",
       "25.00",
       "125.00",
+      "0.00",
     ]);
     await checkHeader();
   };
@@ -159,15 +160,16 @@ test("account chips open the complete posted ledger from home, filtered journals
   await expect(page.getByLabel("الحساب", { exact: true })).toHaveValue(
     "courses",
   );
-  await expect(page.locator("tbody tr")).toHaveCount(3);
+  await expect(page.locator(".ledger-line")).toHaveCount(2);
   await expect(page.locator("tbody")).toContainText("عملية قديمة");
   await expect(page.locator("tbody")).toContainText("حركة مستقبلية");
   await expect(page.locator("tbody")).not.toContainText("مسودة مستبعدة");
   await expect(page.locator("tfoot td")).toHaveText([
-    "الإجمالي",
+    "الإجمالي (SAR)",
     "0.00",
     "150.00",
-    "-150.00",
+    "0.00",
+    "150.00",
   ]);
   await page.screenshot({
     path: "/workspace/artifacts/ghaith-account-ledger.png",

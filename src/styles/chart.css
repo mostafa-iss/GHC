@@ -246,7 +246,8 @@ button.chart-expander {
 }
 .chart-account-row {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 145px 34px;
   align-items: center;
   gap: 14px;
   padding: 12px 13px;
@@ -269,7 +270,9 @@ button.chart-expander {
   background: #eef5f7;
 }
 .chart-account-open {
-  display: flex;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 18px;
+  justify-content: start;
   align-items: center;
   text-align: start;
   gap: 13px;
@@ -287,6 +290,7 @@ button.chart-expander {
 }
 .chart-account-open > div {
   min-width: 0;
+  text-align: start;
 }
 .chart-account-open strong {
   display: block;
@@ -435,6 +439,7 @@ button.chart-expander {
     padding: 16px;
   }
   .chart-account-row {
+    grid-template-columns: minmax(0, 1fr) 112px 34px;
     gap: 9px;
     padding: 10px;
   }
@@ -498,9 +503,11 @@ button.chart-expander {
     padding-inline-start: 10px;
   }
   .chart-account-row {
+    grid-template-columns: minmax(0, 1fr) 84px 32px;
     gap: 7px;
   }
   .chart-account-open {
+    grid-template-columns: 22px minmax(0, 1fr);
     gap: 8px;
   }
   .chart-account-open > svg:first-child {

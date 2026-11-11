@@ -37,7 +37,6 @@ import {
   cents,
   validateEntry,
   reportRows,
-  ledger,
   seed,
   descendants,
   postingAccounts,
@@ -60,6 +59,7 @@ import FinancePanel from "./FinancePanel";
 import TemplatesPanel from "./TemplatesPanel";
 import BackupPanel from "./BackupPanel";
 import ChartOfAccounts from "./ChartOfAccounts";
+import LedgerReport from "./LedgerReport";
 import { accountDeletionError, nextAccountCode } from "./chart.js";
 import { copyJournal, makeTemplate } from "./templates.js";
 import {
@@ -520,36 +520,6 @@ function App() {
             .map((d) => d.url)
             .join("\n"),
         ]);
-      } else if (page === "ledger") {
-        if (!filter.accountId) throw Error("اختر حسابًا قبل التصدير");
-        headers = [
-          "التاريخ",
-          "رقم القيد",
-          "البيان",
-          "مدين (SAR)",
-          "دائن (SAR)",
-          "الرصيد (SAR)",
-        ];
-        const opening = rows.reduce((s, r) => s + r.opening, 0);
-        values = [
-          ["", "", "رصيد أول المدة", 0, 0, opening / 100],
-          ...ledger(data, filter).map((r) => [
-            r.date,
-            r.number,
-            r.description,
-            r.debit / 100,
-            r.credit / 100,
-            r.balance / 100,
-          ]),
-          [
-            "",
-            "",
-            "الإجمالي",
-            totals.debit / 100,
-            totals.credit / 100,
-            rows.reduce((s, r) => s + r.closing, 0) / 100,
-          ],
-        ];
       } else if (page === "income") {
         headers = ["كود الحساب", "الحساب / البيان", "القيمة (SAR)"];
         values = [];
@@ -862,6 +832,7 @@ function App() {
                   ([
                     "entries",
                     "accounts",
+                    "ledger",
                     "finance",
                     "templates",
                     "balance",
@@ -930,6 +901,13 @@ function App() {
               kind={page}
               data={data}
               onAccountOpen={openAccountLedger}
+            />
+          ) : page === "ledger" ? (
+            <LedgerReport
+              data={data}
+              filter={filter}
+              setFilter={setFilter}
+              onJournalOpen={openJournal}
             />
           ) : page === "accounts" ? (
             <ChartOfAccounts
@@ -1128,7 +1106,7 @@ function App() {
             </>
           ) : (
             <>
-              {["ledger", "trial", "income"].includes(page) && (
+              {["trial", "income"].includes(page) && (
                 <section className="card filters">
                   <div className="filter-title">
                     <Search size={17} />
@@ -1478,73 +1456,6 @@ function App() {
                             </tr>
                           ))}
                         </tbody>
-                      </table>
-                    </div>
-                  )}
-                </section>
-              )}
-              {page === "ledger" && (
-                <section className="card">
-                  <ReportTitle title="حساب الأستاذ" filter={filter} />
-                  {!filter.accountId ? (
-                    <Empty
-                      text="اختر حسابًا لعرض حركته"
-                      sub="استخدم الفلاتر بالأعلى لتحديد الحساب والفترة ومركز التكلفة."
-                    />
-                  ) : (
-                    <div className="table-scroll">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>التاريخ</th>
-                            <th>رقم القيد</th>
-                            <th>البيان</th>
-                            <th>مدين</th>
-                            <th>دائن</th>
-                            <th>الرصيد</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="group-row">
-                            <td colSpan="5">رصيد أول المدة</td>
-                            <td className="numeric">
-                              {money(rows.reduce((s, r) => s + r.opening, 0))}
-                            </td>
-                          </tr>
-                          {ledger(data, filter).map((r, i) => (
-                            <tr key={i}>
-                              <td>{r.date}</td>
-                              <td>
-                                <button
-                                  className="link"
-                                  onClick={() =>
-                                    openJournal(
-                                      allEntries.find(
-                                        (e) => e.id === r.entryId,
-                                      ),
-                                    )
-                                  }
-                                >
-                                  #{r.number}
-                                </button>
-                              </td>
-                              <td>{r.description}</td>
-                              <td className="numeric">{money(r.debit)}</td>
-                              <td className="numeric">{money(r.credit)}</td>
-                              <td className="numeric">{money(r.balance)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                        <tfoot>
-                          <tr>
-                            <td colSpan="3">الإجمالي</td>
-                            <td>{money(totals.debit)}</td>
-                            <td>{money(totals.credit)}</td>
-                            <td>
-                              {money(rows.reduce((s, r) => s + r.closing, 0))}
-                            </td>
-                          </tr>
-                        </tfoot>
                       </table>
                     </div>
                   )}

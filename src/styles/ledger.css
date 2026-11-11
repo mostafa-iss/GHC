@@ -1,0 +1,248 @@
+.ledger-report {
+  min-width: 0;
+}
+.ledger-filters {
+  padding: 0 22px 18px;
+  margin-bottom: 22px;
+}
+.ledger-filter-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 17px;
+  color: var(--navy);
+}
+.ledger-filter-title h2 {
+  margin: 0;
+  font-size: 13px;
+}
+.ledger-filter-title > button {
+  margin-inline-start: auto;
+  font-size: 11px;
+}
+.ledger-filters .filter-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 17px;
+}
+.ledger-filter-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-top: 12px;
+}
+.ledger-filter-footer > span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.ledger-document {
+  overflow: hidden;
+}
+.ledger-document .report-title {
+  border-bottom: 1px solid var(--border);
+}
+.ledger-selected-account {
+  color: var(--navy);
+  font-weight: 600;
+}
+.ledger-results-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 20px;
+  font-size: 11px;
+  background: #fbfcfd;
+  color: var(--muted);
+}
+.ledger-results-bar strong {
+  color: var(--accent);
+}
+.ledger-table-wrap {
+  max-height: 75vh;
+  border: 0;
+  border-radius: 0;
+}
+.ledger-table {
+  width: 100%;
+  min-width: 970px;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+.ledger-table th,
+.ledger-table td {
+  border: 1px solid #d9e3e8;
+  padding: 12px 9px;
+  vertical-align: middle;
+}
+.ledger-table thead th {
+  text-align: center;
+  background: #f1f5f8;
+  color: #34596a;
+  font-size: 11px;
+}
+.ledger-table .ledger-account-heading th {
+  text-align: start;
+  font-size: 13px;
+  color: var(--navy);
+  background: #edf5f4;
+  padding: 15px;
+}
+.ledger-account-heading bdi {
+  color: #7b959e;
+  font-size: 11px;
+  font-weight: 400;
+  margin-inline: 12px;
+}
+.ledger-table .ledger-opening td {
+  background: #fafcfd;
+  color: #658291;
+  font-size: 11px;
+}
+.ledger-table .ledger-opening td:first-child {
+  text-align: start;
+}
+.ledger-table .ledger-line td {
+  font-size: 11px;
+  background: #fff;
+}
+.ledger-table .ledger-line:nth-child(even) td {
+  background: #fcfdfe;
+}
+.ledger-table .ledger-line:hover td {
+  background: #f3f8f8;
+}
+.ledger-table .ledger-line td:first-child {
+  width: 36px;
+  text-align: center;
+  color: #8d9fa7;
+}
+.ledger-table .ledger-line .numeric {
+  white-space: nowrap;
+  min-width: 95px;
+  text-align: end;
+}
+.ledger-table .ledger-description {
+  min-width: 230px;
+  max-width: 410px;
+  line-height: 1.9;
+  color: #304f61;
+}
+.ledger-date {
+  white-space: nowrap;
+  direction: ltr;
+  text-align: center;
+}
+.ledger-table .ledger-account-total td {
+  font-weight: 700;
+  color: var(--navy);
+  background: #f2f7f8;
+  border-bottom: 14px solid white;
+}
+.ledger-table .ledger-account-total td:first-child {
+  text-align: start;
+}
+.ledger-table tfoot td {
+  background: #e6f2ee;
+  color: #23675f;
+  font-weight: 800;
+  padding-block: 16px;
+}
+.ledger-empty {
+  padding: 45px 20px;
+  text-align: center;
+  color: var(--muted);
+}
+.ledger-empty svg {
+  color: #95adb8;
+}
+.ledger-empty h3 {
+  margin: 12px 0 6px;
+  font-size: 16px;
+}
+.ledger-empty p {
+  font-size: 12px;
+}
+@media (max-width: 1100px) {
+  .ledger-filters .filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  .ledger-filters {
+    padding: 0 15px 15px;
+  }
+  .ledger-filters .filter-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .ledger-filter-footer .actions {
+    width: 100%;
+  }
+  .ledger-filter-footer button {
+    flex: 1;
+  }
+  .ledger-results-bar {
+    padding-inline: 14px;
+  }
+  .ledger-table-wrap {
+    max-height: 70vh;
+  }
+}
+@media print {
+  .ledger-filters,
+  .ledger-results-bar {
+    display: none !important;
+  }
+  .ledger-table-wrap {
+    max-height: none;
+    overflow: visible;
+  }
+  .ledger-document {
+    overflow: visible;
+  }
+  .ledger-table {
+    min-width: 0;
+    width: 100%;
+    table-layout: fixed;
+  }
+  .ledger-table th,
+  .ledger-table td {
+    font-size: 8px !important;
+    padding: 6px 4px;
+    overflow-wrap: anywhere;
+  }
+  .ledger-table .ledger-line .numeric {
+    min-width: 0;
+    white-space: normal;
+  }
+  .ledger-table .ledger-description {
+    min-width: 0;
+    max-width: none;
+  }
+  .ledger-table .ledger-line td:first-child {
+    width: auto;
+  }
+  .ledger-table .ledger-line button.link {
+    display: inline !important;
+    padding: 0;
+    font-size: 8px;
+  }
+  .ledger-table .ledger-account-total td {
+    border-bottom-width: 8px;
+  }
+  .ledger-table thead {
+    display: table-header-group;
+    position: static;
+  }
+  .ledger-table tfoot {
+    display: table-row-group;
+  }
+  .ledger-table tr {
+    break-inside: avoid;
+  }
+}

@@ -4,4 +4,5 @@
 @import "./styles/responsive.css";
 @import "./styles/features.css";
 @import "./styles/chart.css";
+@import "./styles/ledger.css";
 @import "./styles/print.css";
