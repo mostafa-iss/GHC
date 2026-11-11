@@ -7,3 +7,5 @@ playwright-report/
 
 .wrangler/
 .dev.vars*
+
+test-results-storage/

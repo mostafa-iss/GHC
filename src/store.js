@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { authStorage } from "./authStorage";
 import { seed } from "./accounting";
+import { uploadAttachment, validateAttachment } from "./attachments.js";
 const projectUrl = (import.meta.env.VITE_SUPABASE_URL || "")
   .trim()
   .replace(/\/rest\/v1\/?$/, "")
@@ -53,19 +54,9 @@ export async function saveData(data, version) {
   return next;
 }
 export async function upload(file) {
-  if (
-    !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(
-      file.type,
-    )
-  )
-    throw Error("المرفقات: PDF أو صور JPG وPNG وWebP فقط");
-  if (file.size > 5 * 1024 * 1024) throw Error("الحد الأقصى للمرفق 5 ميجابايت");
+  validateAttachment(file);
   if (!cloud) throw Error("رفع المرفقات متاح بعد ربط التخزين السحابي");
-  const path =
-    crypto.randomUUID() + "/" + file.name.replace(/[^\w.\u0600-\u06ff-]/g, "_");
-  const { error } = await client.storage.from("attachments").upload(path, file);
-  if (error) throw error;
-  return { path, name: file.name, mimeType: file.type, size: file.size };
+  return uploadAttachment(file, client.storage.from("attachments"));
 }
 export async function openAttachment(a) {
   const { data, error } = await client.storage

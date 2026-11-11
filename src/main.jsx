@@ -71,7 +71,6 @@ import JournalDetail from "./JournalDetail";
 import {
   allJournals,
   filterJournals,
-  saveJournal,
   changeJournalState,
   resetJournals,
   validateDraft,
@@ -84,6 +83,8 @@ import { logoBytes } from "./brand";
 import { exportReport } from "./exports";
 import { REMEMBER_KEY } from "./authStorage";
 import ImportPanel from "./ImportPanel";
+import AttachmentEditor from "./AttachmentEditor";
+import { saveJournalAttachments } from "./attachments.js";
 
 import "@fontsource/cairo/400.css";
 import "@fontsource/cairo/600.css";
@@ -204,6 +205,7 @@ function App() {
     setData(next);
     setVersion(v);
     setToast("تم الحفظ بنجاح");
+    return { data: next, version: v };
   }
   async function action(fn) {
     setBusy(true);
@@ -1640,7 +1642,9 @@ function App() {
                   {
                     {
                       import: "استيراد القيود اليومية",
-                      entry: "إضافة قيد يومي",
+                      entry: allEntries.some((e) => e.id === modal.value.id)
+                        ? "تعديل قيد يومي"
+                        : "إضافة قيد يومي",
                       template: "قالب قيد يومي",
                       view: `قيد يومي #${modal.value.number}`,
                       account: "بيانات الحساب",
@@ -1730,40 +1734,35 @@ function App() {
                     }
                     if (post) validateEntry(entry, data.accounts, data.centers);
                     else validateDraft(entry, data.accounts, data.centers);
-                    const uploaded = [];
-                    try {
-                      for (const file of files)
-                        uploaded.push(await upload(file));
-                      const next = saveJournal(
-                        data,
-                        {
-                          ...entry,
-                          attachments: [
-                            ...(entry.attachments || []),
-                            ...uploaded,
-                          ],
+                    const result = await saveJournalAttachments(
+                      data,
+                      entry,
+                      files,
+                      { post },
+                      {
+                        upload,
+                        save: persist,
+                        read: readData,
+                        recover: (snapshot) => {
+                          setData(snapshot.data);
+                          setVersion(snapshot.version);
                         },
-                        { post },
-                      );
-                      if (data.entryDocuments?.[entry.id])
-                        next.entryDocuments = {
-                          ...(next.entryDocuments || {}),
-                          [entry.id]: entry.documentLinks,
-                        };
-                      await persist(next);
-                      setModal(null);
-                      setToast(
-                        post
-                          ? "تم حفظ وترحيل القيد"
-                          : "تم حفظ المسودة — لا تؤثر في الحسابات",
-                      );
-                    } catch (err) {
-                      if (cloud && uploaded.length)
-                        await client.storage
-                          .from("attachments")
-                          .remove(uploaded.map((a) => a.path));
-                      throw err;
-                    }
+                        remove: async (paths) => {
+                          if (!cloud) return;
+                          const { error } = await client.storage
+                            .from("attachments")
+                            .remove(paths);
+                          if (error) throw error;
+                        },
+                      },
+                    );
+                    setModal(null);
+                    setToast(
+                      post
+                        ? "تم حفظ وترحيل القيد"
+                        : "تم حفظ المسودة — لا تؤثر في الحسابات",
+                    );
+                    if (result.cleanupWarning) setError(result.cleanupWarning);
                   })
                 }
               />
@@ -2292,24 +2291,16 @@ function EntryForm({
           </span>
         </div>
         {!readOnly && !asTemplate ? (
-          <label className="upload">
-            <Paperclip size={22} />
-            <strong>إرفاق مستندات القيد</strong>
-            <span>
-              صور أو PDF · حتى 5 ميجابايت لكل ملف
-              {!cloud ? " · يتطلب الربط السحابي" : ""}
-            </span>
-            <input
-              type="file"
-              multiple
-              accept="image/png,image/jpeg,image/webp,application/pdf"
-              disabled={!cloud || busy}
-              onChange={(e) => setFiles(Array.from(e.target.files))}
-            />
-            {files.map((f, i) => (
-              <small key={i}>{f.name}</small>
-            ))}
-          </label>
+          <AttachmentEditor
+            attachments={v.attachments || []}
+            original={entry.attachments || []}
+            files={files}
+            onAttachmentsChange={(attachments) =>
+              setV((prev) => ({ ...prev, attachments }))
+            }
+            onFilesChange={setFiles}
+            busy={busy}
+          />
         ) : (
           <div className="attachments">
             {v.attachments?.map((a) => (

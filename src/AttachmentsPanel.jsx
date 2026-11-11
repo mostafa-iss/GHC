@@ -3,7 +3,7 @@ import { FileText, Download, ExternalLink, Paperclip } from "lucide-react";
 import { client, cloud } from "./store";
 import { entryDocuments } from "./documents";
 import driveLogo from "./assets/google-drive.svg";
-function Attachment({ file }) {
+export function Attachment({ file }) {
   const [url, setUrl] = useState(""),
     [error, setError] = useState("");
   const image = /\.(png|jpe?g|webp)$/i.test(file.name || "");
