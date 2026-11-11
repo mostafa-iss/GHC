@@ -59,6 +59,8 @@ import FinancialReports from "./FinancialReports";
 import FinancePanel from "./FinancePanel";
 import TemplatesPanel from "./TemplatesPanel";
 import BackupPanel from "./BackupPanel";
+import ChartOfAccounts from "./ChartOfAccounts";
+import { accountDeletionError, nextAccountCode } from "./chart.js";
 import { copyJournal, makeTemplate } from "./templates.js";
 import {
   createBackupArchive,
@@ -130,8 +132,7 @@ function App() {
       search: "",
     }),
     [side, setSide] = useState(false),
-    [audits, setAudits] = useState([]),
-    [collapsed, setCollapsed] = useState(new Set());
+    [audits, setAudits] = useState([]);
   const dialogRef = useRef(null),
     sidebarRef = useRef(null);
   useOverlayFocus(Boolean(modal), dialogRef);
@@ -306,17 +307,6 @@ function App() {
       },
     });
   }
-  const accountRows = [];
-  function walkAccounts(parentId = "", depth = 0) {
-    data.accounts
-      .filter((a) => (a.parentId || "") === parentId)
-      .sort((a, b) => a.code.localeCompare(b.code))
-      .forEach((a) => {
-        accountRows.push({ ...a, depth });
-        if (!collapsed.has(a.id)) walkAccounts(a.id, depth + 1);
-      });
-  }
-  walkAccounts();
   const name = (id) => data.accounts.find((a) => a.id === id)?.name || "—";
   const center = (id) => data.centers.find((a) => a.id === id)?.name || "—";
   function nav(id) {
@@ -429,7 +419,8 @@ function App() {
       }),
     );
   }
-  function newEntry() {
+  function newEntry(accountId = "") {
+    if (typeof accountId !== "string") accountId = "";
     setModal({
       kind: "entry",
       value: {
@@ -437,8 +428,36 @@ function App() {
         date: today(),
         description: "",
         attachments: [],
-        lines: [blankLine(), blankLine()],
+        lines: [{ ...blankLine(), accountId }, blankLine()],
       },
+    });
+  }
+  function addChartAccount(parent) {
+    setModal({
+      kind: "account",
+      value: {
+        id: crypto.randomUUID(),
+        name: "",
+        code: nextAccountCode(data.accounts, parent?.id),
+        type: parent?.type || "asset",
+        parentId: parent?.id || "",
+        normalBalance:
+          parent?.normalBalance ||
+          (["asset", "expense"].includes(parent?.type || "asset")
+            ? "debit"
+            : "credit"),
+      },
+    });
+  }
+  function deleteChartAccount(account) {
+    action(async () => {
+      const message = accountDeletionError(data, account.id);
+      if (message) throw Error(message);
+      if (confirm("حذف الحساب «" + account.name + "»؟"))
+        await persist({
+          ...data,
+          accounts: data.accounts.filter((a) => a.id !== account.id),
+        });
     });
   }
   const rows = useMemo(
@@ -842,6 +861,7 @@ function App() {
                   "actions " +
                   ([
                     "entries",
+                    "accounts",
                     "finance",
                     "templates",
                     "balance",
@@ -910,6 +930,19 @@ function App() {
               kind={page}
               data={data}
               onAccountOpen={openAccountLedger}
+            />
+          ) : page === "accounts" ? (
+            <ChartOfAccounts
+              data={data}
+              busy={busy}
+              onAdd={addChartAccount}
+              onEdit={(account) =>
+                setModal({ kind: "account", value: { ...account } })
+              }
+              onDelete={deleteChartAccount}
+              onNewEntry={newEntry}
+              onJournalOpen={openJournal}
+              onLedgerOpen={openAccountLedger}
             />
           ) : page === "finance" ? (
             <FinancePanel
@@ -1353,129 +1386,6 @@ function App() {
                     busy={busy}
                   />
                 </>
-              )}
-              {page === "accounts" && (
-                <section className="card">
-                  <div className="card-title">
-                    <h2>
-                      دليل الحسابات{" "}
-                      <span className="count">{data.accounts.length}</span>
-                    </h2>
-                    <span className="muted">اضغط على الحساب لتعديله</span>
-                  </div>
-                  <div className="table-scroll">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>كود الحساب</th>
-                          <th>اسم الحساب</th>
-                          <th>التصنيف</th>
-                          <th>الحساب الرئيسي</th>
-                          <th>الطبيعة</th>
-                          <th>الإجراءات</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {accountRows.map((a) => (
-                          <tr
-                            key={a.id}
-                            className={!a.parentId ? "group-row" : ""}
-                          >
-                            <td className="numeric">{a.code}</td>
-                            <td
-                              style={{
-                                paddingInlineStart: 18 + a.depth * 18,
-                              }}
-                            >
-                              {data.accounts.some(
-                                (x) => x.parentId === a.id,
-                              ) && (
-                                <button
-                                  className="tree-toggle"
-                                  aria-label={
-                                    (collapsed.has(a.id) ? "فتح " : "طي ") +
-                                    a.name
-                                  }
-                                  aria-expanded={!collapsed.has(a.id)}
-                                  onClick={() =>
-                                    setCollapsed((prev) => {
-                                      const n = new Set(prev);
-                                      if (n.has(a.id)) n.delete(a.id);
-                                      else n.add(a.id);
-                                      return n;
-                                    })
-                                  }
-                                >
-                                  {collapsed.has(a.id) ? "+" : "−"}
-                                </button>
-                              )}
-                              <button
-                                className="link"
-                                onClick={() =>
-                                  setModal({
-                                    kind: "account",
-                                    value: { ...a },
-                                  })
-                                }
-                              >
-                                <GitBranch size={15} />
-                                {a.name}
-                              </button>
-                            </td>
-                            <td>
-                              <span className="badge neutral">
-                                {types[a.type]}
-                              </span>
-                            </td>
-                            <td>
-                              {a.parentId ? name(a.parentId) : "حساب رئيسي"}
-                            </td>
-                            <td>
-                              {(a.normalBalance ||
-                                (["asset", "expense"].includes(a.type)
-                                  ? "debit"
-                                  : "credit")) === "debit"
-                                ? "مدين"
-                                : "دائن"}
-                            </td>
-                            <td>
-                              <button
-                                className="icon danger"
-                                title="حذف الحساب"
-                                onClick={() =>
-                                  action(async () => {
-                                    if (
-                                      data.accounts.some(
-                                        (x) => x.parentId === a.id,
-                                      ) ||
-                                      data.entries.some((e) =>
-                                        e.lines.some(
-                                          (l) => l.accountId === a.id,
-                                        ),
-                                      )
-                                    )
-                                      throw Error(
-                                        "لا يمكن حذف حساب له حسابات فرعية أو حركات",
-                                      );
-                                    if (confirm("حذف الحساب؟"))
-                                      await persist({
-                                        ...data,
-                                        accounts: data.accounts.filter(
-                                          (x) => x.id !== a.id,
-                                        ),
-                                      });
-                                  })
-                                }
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
               )}
               {page === "centers" && (
                 <section className="card">
@@ -1977,8 +1887,9 @@ function App() {
                     if (
                       key === "accounts" &&
                       value.parentId &&
-                      data.entries.some((e) =>
-                        e.lines.some((l) => l.accountId === value.parentId),
+                      [...data.entries, ...(data.draftEntries || [])].some(
+                        (e) =>
+                          e.lines.some((l) => l.accountId === value.parentId),
                       )
                     )
                       throw Error(
@@ -2153,7 +2064,11 @@ function MasterForm({ kind, initial, data, onSave, busy }) {
         onSave(v);
       }}
     >
-      <div className="form-body">
+      <div
+        className={
+          "form-body " + (kind === "account" ? "account-master-grid" : "")
+        }
+      >
         <Field label="الاسم">
           <input
             required
@@ -2211,7 +2126,12 @@ function MasterForm({ kind, initial, data, onSave, busy }) {
             {list
               .filter(
                 (a) =>
-                  a.id !== v.id && (kind !== "account" || a.type === v.type),
+                  !descendants(list, v.id).has(a.id) &&
+                  (kind !== "account" ||
+                    (a.type === v.type &&
+                      ![...data.entries, ...(data.draftEntries || [])].some(
+                        (e) => e.lines.some((l) => l.accountId === a.id),
+                      ))),
               )
               .map((a) => (
                 <option key={a.id} value={a.id}>
