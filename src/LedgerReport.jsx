@@ -71,7 +71,7 @@ export default function LedgerReport({
         subtitle: `${selected.code} — ${selected.name} · ${period} · ${center} · SAR`,
         headers: ledgerExportHeaders,
         rows: ledgerExportRows(report, data.centers),
-        filename: `ghaith-ledger-${selected.code}.xlsx`,
+        filename: `ghc-ledger-${selected.code}.xlsx`,
       });
     } catch (e) {
       setError(e.message);

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../tests/support/browser.js";
 import { seed } from "../src/accounting.js";
 import { readFileSync } from "node:fs";
 import ExcelJS from "exceljs";
@@ -43,7 +43,7 @@ test("parent ledger isolates each child account, opening and running balances; f
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.addInitScript(
-    (d) => localStorage.setItem("ghaith-demo-v1", JSON.stringify(d)),
+    (d) => localStorage.setItem("ghc-demo-v1", JSON.stringify(d)),
     fixture(),
   );
   await page.goto("/");

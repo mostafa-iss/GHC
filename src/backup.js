@@ -38,7 +38,6 @@ export function validateSnapshot(data) {
   if (
     !data ||
     !Array.isArray(data.accounts) ||
-    !data.accounts.length ||
     !Array.isArray(data.centers) ||
     !Array.isArray(data.entries)
   )
@@ -155,7 +154,7 @@ export async function readBackup(file) {
     );
   });
   if (rejected) fail("حجم النسخة بعد فك الضغط يتجاوز الحد المدعوم");
-  if (!files["accounting.json"]) fail("الملف ليس نسخة احتياطية من غيث");
+  if (!files["accounting.json"]) fail("الملف ليس نسخة احتياطية من GHC Academy");
   let snapshot;
   try {
     snapshot = JSON.parse(strFromU8(files["accounting.json"]));
@@ -264,7 +263,7 @@ export function restoredState(source, attachments = new Map()) {
     entryId: "*",
     action: "استرجاع نسخة احتياطية",
     at: new Date().toISOString(),
-    actor: "ghaith",
+    actor: "GHC Academy",
   });
   return data;
 }
@@ -284,7 +283,7 @@ export async function createBackupArchive(fresh, downloadAttachment, logo) {
       if (!files[name])
         files[name] = new Uint8Array(await downloadAttachment(a));
     }
-  if (logo) files["ghaith-logo.png"] = logo;
+  if (logo) files["ghc-logo.png"] = logo;
   return new Blob([zipSync(files)], { type: "application/zip" });
 }
 export function downloadBackup(blob, name) {

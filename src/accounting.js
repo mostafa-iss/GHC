@@ -192,3 +192,15 @@ export function seed() {
     entries: [],
   };
 }
+
+export function emptyState() {
+  return {
+    accounts: [],
+    centers: [],
+    entries: [],
+    draftEntries: [],
+    journalWorkflowVersion: 2,
+    entryNumberSequence: 0,
+    draftNumberSequence: 0,
+  };
+}

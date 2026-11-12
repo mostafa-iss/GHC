@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../tests/support/browser.js";
 import ExcelJS from "exceljs";
 import { seed } from "../src/accounting.js";
 async function fixture() {
@@ -120,7 +120,7 @@ test("Journal-only Excel import preserves the existing chart, requires partial c
   await expect(page.getByRole("img", { name: "Google Drive" })).toBeVisible();
   expect(
     await page.evaluate(
-      () => JSON.parse(localStorage.getItem("ghaith-demo-v1")).accounts,
+      () => JSON.parse(localStorage.getItem("ghc-demo-v1")).accounts,
     ),
   ).toEqual(seed().accounts);
   await page

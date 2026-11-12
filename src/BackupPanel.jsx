@@ -69,7 +69,7 @@ export default function BackupPanel({
           <RotateCcw size={21} />
           استرجاع نسخة احتياطية
         </h2>
-        <p>اختر ملف ZIP صادرًا من غيث لمراجعته قبل الاسترجاع.</p>
+        <p>اختر ملف ZIP صادرًا من GHC Academy لمراجعته قبل الاسترجاع.</p>
         <label className="upload">
           ملف النسخة الاحتياطية
           <input

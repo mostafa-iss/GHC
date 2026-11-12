@@ -38,7 +38,7 @@ export async function brandedWorkbook({
   const image = book.addImage({ buffer: bytes, extension: "png" });
   sheet.addImage(image, {
     tl: { col: 0, row: 0 },
-    ext: { width: 112, height: 146 },
+    ext: { width: 140, height: 80 },
     editAs: "oneCell",
   });
   sheet.mergeCells("B2:H3");
@@ -80,14 +80,17 @@ export function addReportTable(sheet, headers, rows, { startRow = 10 } = {}) {
     c.fill = {
       type: "pattern",
       pattern: "solid",
-      fgColor: { argb: "FF2D6263" },
+      fgColor: { argb: "FF084A99" },
     };
     c.alignment = { horizontal: "right", vertical: "middle", wrapText: true };
   });
   for (let i = 0; i < rows.length; i++) {
     const row = sheet.getRow(startRow + i + 1);
     row.values = rows[i];
-    row.height = 25;
+    row.height = 28;
+    const label = String(rows[i][1] || "");
+    const isTotal = /^(إجمالي|صافي الربح)/.test(label);
+    const isSection = rows[i].length < headers.length;
     row.eachCell((cell, col) => {
       cell.font = { name: "Cairo", size: 11, color: { argb: "FF24384B" } };
       cell.alignment = {
@@ -100,15 +103,30 @@ export function addReportTable(sheet, headers, rows, { startRow = 10 } = {}) {
         headers[col - 1]?.match(/مدين|دائن|رصيد|مبلغ|قيمة|إجمالي|صافي/)
       )
         cell.numFmt = "#,##0.00;[Red](#,##0.00)";
-      if (i % 2 === 0)
+      if (isTotal || isSection) {
+        cell.font = {
+          name: "Cairo",
+          size: 11,
+          bold: true,
+          color: { argb: "FF102D54" },
+        };
         cell.fill = {
           type: "pattern",
           pattern: "solid",
-          fgColor: { argb: "FFF2F7F6" },
+          fgColor: { argb: isTotal ? "FFE5EEFA" : "FFF0F4F9" },
+        };
+      } else if (i % 2 === 0)
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFF5F7FA" },
         };
     });
   }
   sheet.getColumn(2).width = 44;
+  for (let c = 3; c <= headers.length; c++) sheet.getColumn(c).width = 22;
+  sheet.views = [{ rightToLeft: true, state: "frozen", ySplit: 10, xSplit: 2 }];
+  sheet.pageSetup.printTitlesColumn = "A:B";
   sheet.autoFilter = {
     from: { row: startRow, column: 1 },
     to: { row: startRow + rows.length, column: headers.length },

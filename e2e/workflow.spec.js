@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../tests/support/browser.js";
 import { readFileSync } from "node:fs";
 import { unzipSync, strFromU8 } from "fflate";
 test("Arabic accounting workflow: center, balanced journal, reports, persistence and backup", async ({
@@ -61,7 +61,7 @@ test("Arabic accounting workflow: center, balanced journal, reports, persistence
   await page.getByLabel("الحساب", { exact: true }).selectOption("cash");
   await expect(page.locator("tfoot")).toContainText("1,250.50");
   await page.getByRole("button", { name: "قائمة الدخل", exact: true }).click();
-  await expect(page.locator(".net-income")).toContainText("1,250.50");
+  await expect(page.locator(".income-table tfoot")).toContainText("1,250.50");
   await expect(page.locator(".report-title img")).toBeVisible();
   const reportDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "تصدير Excel", exact: true }).click();

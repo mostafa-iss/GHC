@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../tests/support/browser.js";
 import { readFileSync } from "node:fs";
 import ExcelJS from "exceljs";
 test("Daftra journal workspace: draft, post, Arabic title/account search, full detail, Excel and permanent delete", async ({
@@ -38,7 +38,7 @@ test("Daftra journal workspace: draft, post, Arabic title/account search, full d
   await expect(page.locator(".journal-row")).toHaveCount(1);
   await expect(page.locator(".journal-row")).toContainText("مسودة");
   await page.getByRole("button", { name: "قائمة الدخل", exact: true }).click();
-  await expect(page.locator(".net-income")).toContainText("0.00");
+  await expect(page.locator(".income-table tfoot")).toContainText("0.00");
   await page
     .getByRole("button", { name: "القيود اليومية", exact: true })
     .click();
@@ -67,7 +67,7 @@ test("Daftra journal workspace: draft, post, Arabic title/account search, full d
     fullPage: true,
   });
   await page.getByRole("button", { name: "قائمة الدخل", exact: true }).click();
-  await expect(page.locator(".net-income")).toContainText("500.00");
+  await expect(page.locator(".income-table tfoot")).toContainText("500.00");
   await page
     .getByRole("button", { name: "القيود اليومية", exact: true })
     .click();
@@ -86,7 +86,7 @@ test("Daftra journal workspace: draft, post, Arabic title/account search, full d
     .click();
   await expect(page.locator(".journal-detail-heading")).toContainText("مسودة");
   await page.getByRole("button", { name: "قائمة الدخل", exact: true }).click();
-  await expect(page.locator(".net-income")).toContainText("0.00");
+  await expect(page.locator(".income-table tfoot")).toContainText("0.00");
   await page
     .getByRole("button", { name: "القيود اليومية", exact: true })
     .click();
@@ -94,7 +94,7 @@ test("Daftra journal workspace: draft, post, Arabic title/account search, full d
   await page.getByRole("button", { name: "حذف", exact: true }).click();
   await expect(page.locator(".journal-row")).toHaveCount(0);
   const stored = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("ghaith-demo-v1")),
+    JSON.parse(localStorage.getItem("ghc-demo-v1")),
   );
   expect(stored.entries).toHaveLength(0);
   expect(stored.draftEntries).toHaveLength(0);

@@ -157,6 +157,7 @@ async function mockStorage(page) {
     );
   });
   await page.goto("/");
+  await page.getByLabel("البريد الإلكتروني", { exact: true }).fill("fixture@example.test");
   await page
     .getByLabel("كلمة المرور", { exact: true })
     .fill("fixture-password");

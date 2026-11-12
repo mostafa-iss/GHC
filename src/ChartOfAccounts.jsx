@@ -237,7 +237,7 @@ export default function ChartOfAccounts({
               movement.closing / 100,
             ],
           ],
-          filename: `ghaith-ledger-${selected.code}.xlsx`,
+          filename: `ghc-ledger-${selected.code}.xlsx`,
         });
       else
         await exportReport({
@@ -262,7 +262,7 @@ export default function ChartOfAccounts({
               Math.max(-b, 0) / 100,
             ];
           }),
-          filename: "ghaith-chart-of-accounts.xlsx",
+          filename: "ghc-chart-of-accounts.xlsx",
         });
     } catch (e) {
       setError(e.message);

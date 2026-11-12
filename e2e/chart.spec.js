@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../tests/support/browser.js";
 import { seed } from "../src/accounting.js";
 import { curatedChart } from "../src/curatedChart.js";
 import ExcelJS from "exceljs";
@@ -64,7 +64,7 @@ test("chart folders, search, running ledger, linked journals, export, account ed
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("dialog", (d) => d.accept());
   await page.addInitScript(
-    (d) => localStorage.setItem("ghaith-demo-v1", JSON.stringify(d)),
+    (d) => localStorage.setItem("ghc-demo-v1", JSON.stringify(d)),
     fixture(),
   );
   await page.goto("/");

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../tests/support/browser.js";
 import { seed } from "../src/accounting.js";
 import { readFileSync } from "node:fs";
 import ExcelJS from "exceljs";
@@ -63,7 +63,7 @@ test("monthly comparison survives clearing and temporarily invalid years in eith
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.addInitScript(
-    (data) => localStorage.setItem("ghaith-demo-v1", JSON.stringify(data)),
+    (data) => localStorage.setItem("ghc-demo-v1", JSON.stringify(data)),
     fixture(),
   );
   await page.goto("/");
@@ -121,7 +121,7 @@ test("searchable accounts, journal copy/templates, financial reports, bank state
     errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.addInitScript(
-    (data) => localStorage.setItem("ghaith-demo-v1", JSON.stringify(data)),
+    (data) => localStorage.setItem("ghc-demo-v1", JSON.stringify(data)),
     d,
   );
   await page.goto("/");
@@ -172,7 +172,7 @@ test("searchable accounts, journal copy/templates, financial reports, bank state
   await page.getByRole("button", { name: "حفظ مسودة", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   let stored = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("ghaith-demo-v1")),
+    JSON.parse(localStorage.getItem("ghc-demo-v1")),
   );
   expect(stored.entries).toHaveLength(4);
   expect(stored.draftEntries).toHaveLength(2);
@@ -264,7 +264,7 @@ test("searchable accounts, journal copy/templates, financial reports, bank state
       .filter({ hasText: "تم استرجاع النسخة الاحتياطية بنجاح" }),
   ).toBeVisible();
   stored = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("ghaith-demo-v1")),
+    JSON.parse(localStorage.getItem("ghc-demo-v1")),
   );
   expect(stored.entries).toHaveLength(4);
   expect(stored.draftEntries || []).toHaveLength(0);

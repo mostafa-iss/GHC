@@ -1,3 +1,4 @@
+import IncomeStatement from "./IncomeStatement.jsx";
 import React, { useState, useEffect, useId, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -37,7 +38,7 @@ import {
   cents,
   validateEntry,
   reportRows,
-  seed,
+  emptyState,
   descendants,
   postingAccounts,
 } from "./accounting";
@@ -117,7 +118,7 @@ const pages = [
 function App() {
   const [session, setSession] = useState(null),
     [loading, setLoading] = useState(true),
-    [data, setData] = useState(seed()),
+    [data, setData] = useState(emptyState()),
     [version, setVersion] = useState(0),
     [page, setPage] = useState("dashboard"),
     [journalId, setJournalId] = useState(null),
@@ -196,7 +197,7 @@ function App() {
           ...(data.audit || []),
           {
             at: new Date().toISOString(),
-            actor: "ghaith",
+            actor: "GHC Academy",
             description: "تحديث البيانات المحاسبية",
           },
         ],
@@ -247,7 +248,7 @@ function App() {
       },
       await logoBytes(),
     );
-    downloadBackup(blob, "ghaith-backup-" + today() + ".zip");
+    downloadBackup(blob, "ghc-backup-" + today() + ".zip");
   }
   async function backup() {
     await action(async () => {
@@ -417,7 +418,7 @@ function App() {
     return action(() =>
       exportJournals(data, entries, {
         title,
-        filename: "ghaith-journals-" + today() + ".xlsx",
+        filename: "ghc-journals-" + today() + ".xlsx",
       }),
     );
   }
@@ -522,49 +523,6 @@ function App() {
             .map((d) => d.url)
             .join("\n"),
         ]);
-      } else if (page === "income") {
-        headers = ["كود الحساب", "الحساب / البيان", "القيمة (SAR)"];
-        values = [];
-        for (const type of ["revenue", "expense"]) {
-          values.push(["", types[type], ""]);
-          for (const r of rows.filter(
-            (r) =>
-              r.type === type &&
-              !data.accounts.some((a) => a.parentId === r.id),
-          ))
-            values.push([
-              r.code,
-              r.name,
-              (type === "revenue" ? r.credit - r.debit : r.debit - r.credit) /
-                100,
-            ]);
-          values.push([
-            "",
-            "إجمالي " + types[type],
-            rows
-              .filter((r) => r.type === type)
-              .reduce(
-                (s, r) =>
-                  s +
-                  (type === "revenue"
-                    ? r.credit - r.debit
-                    : r.debit - r.credit),
-                0,
-              ) / 100,
-          ]);
-        }
-        values.push([
-          "",
-          "صافي الربح / الخسارة",
-          rows.reduce(
-            (s, r) =>
-              s +
-              (["revenue", "expense"].includes(r.type)
-                ? r.credit - r.debit
-                : 0),
-            0,
-          ) / 100,
-        ]);
       } else {
         headers = [
           "الكود",
@@ -613,7 +571,7 @@ function App() {
         subtitle,
         headers,
         rows: values,
-        filename: `ghaith-${page}-${today()}.xlsx`,
+        filename: `ghc-${page}-${today()}.xlsx`,
       });
     });
   }
@@ -622,7 +580,7 @@ function App() {
       <div className="loading" role="status">
         <BrandLogo />
         <span className="loading-spinner" />
-        <span>جاري تحميل غيث…</span>
+        <span>جاري تحميل GHC Academy…</span>
       </div>
     );
   if (!session)
@@ -663,7 +621,7 @@ function App() {
         </button>
         <button
           className="brand"
-          aria-label="غيث — الصفحة الرئيسية"
+          aria-label="GHC Academy — الصفحة الرئيسية"
           onClick={() => nav("dashboard")}
         >
           <BrandLogo className="sidebar-logo" />
@@ -715,7 +673,7 @@ function App() {
             >
               <Menu />
             </button>
-            غيث <ChevronLeft size={14} />
+            GHC Academy <ChevronLeft size={14} />
             <strong>
               {page === "journal"
                 ? "قيد يومية"
@@ -726,7 +684,7 @@ function App() {
             {!cloud && <span className="mode demo">وضع تجريبي محلي</span>}
             <span className="avatar">G</span>
             <span>
-              ghaith<small>محاسب</small>
+              GHC Academy<small>محاسب</small>
             </span>
             <button
               className="icon"
@@ -792,7 +750,7 @@ function App() {
             <div className="page-heading">
               <div>
                 <div className="eyebrow">
-                  غيث /{" "}
+                  GHC Academy /{" "}
                   {page === "dashboard"
                     ? "لوحة التحكم"
                     : ["ledger", "trial", "income"].includes(page)
@@ -813,7 +771,7 @@ function App() {
                       accounts: "نظّم حساباتك المالية في شجرة واضحة ومرنة.",
                       centers: "تابع إيرادات ومصروفات كل دورة أو مجموعة.",
                       finance:
-                        "حساباتك البنكية وكشوفها الأصلية وحركاتها في غيث.",
+                        "حساباتك البنكية وكشوفها الأصلية وحركاتها في GHC Academy.",
                       templates: "قوالب جاهزة للاستخدام في القيود المتكررة.",
                       comparison: "قارن إيراداتك ومصروفاتك بين شهرين.",
                       balance:
@@ -839,6 +797,7 @@ function App() {
                     "templates",
                     "balance",
                     "comparison",
+                    "income",
                     "backup",
                   ].includes(page)
                     ? "journal-generic-actions"
@@ -1108,7 +1067,7 @@ function App() {
             </>
           ) : (
             <>
-              {["trial", "income"].includes(page) && (
+              {page === "trial" && (
                 <section className="card filters">
                   <div className="filter-title">
                     <Search size={17} />
@@ -1244,7 +1203,7 @@ function App() {
                                   },
                                 )}
                               </td>
-                              <td>ghaith (حساب مشترك)</td>
+                              <td>GHC Academy (حساب مشترك)</td>
                               <td>{a.description}</td>
                             </tr>
                           ))}
@@ -1547,74 +1506,10 @@ function App() {
                 </section>
               )}
               {page === "income" && (
-                <section className="card">
-                  <ReportTitle title="قائمة الدخل" filter={filter} />
-                  {["revenue", "expense"].map((type) => (
-                    <div key={type}>
-                      <h3 className="report-section">{types[type]}</h3>
-                      <table>
-                        <tbody>
-                          {rows
-                            .filter(
-                              (r) =>
-                                r.type === type &&
-                                data.accounts.every((a) => a.parentId !== r.id),
-                            )
-                            .map((r) => (
-                              <tr key={r.id}>
-                                <td>
-                                  {r.code} · {r.name}
-                                </td>
-                                <td className="numeric">
-                                  {money(
-                                    type === "revenue"
-                                      ? r.credit - r.debit
-                                      : r.debit - r.credit,
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                        </tbody>
-                        <tfoot>
-                          <tr>
-                            <td>إجمالي {types[type]}</td>
-                            <td className="numeric">
-                              {money(
-                                rows
-                                  .filter((r) => r.type === type)
-                                  .reduce(
-                                    (s, r) =>
-                                      s +
-                                      (type === "revenue"
-                                        ? r.credit - r.debit
-                                        : r.debit - r.credit),
-                                    0,
-                                  ),
-                              )}{" "}
-                              ر.س
-                            </td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                  ))}
-                  <div className="net-income">
-                    <strong>صافي الربح / الخسارة</strong>
-                    <strong dir="ltr">
-                      {money(
-                        rows.reduce(
-                          (s, r) =>
-                            s +
-                            (["revenue", "expense"].includes(r.type)
-                              ? r.credit - r.debit
-                              : 0),
-                          0,
-                        ),
-                      )}{" "}
-                      SAR
-                    </strong>
-                  </div>
-                </section>
+                <IncomeStatement
+                  data={data}
+                  onAccountOpen={openAccountLedger}
+                />
               )}
             </>
           )}
@@ -2348,7 +2243,7 @@ function EntryForm({
   );
 }
 function Login({ onDemo, onError, error }) {
-  const [user, setUser] = useState("ghaith"),
+  const [user, setUser] = useState(""),
     [password, setPassword] = useState(""),
     [busy, setBusy] = useState(false),
     [showPassword, setShowPassword] = useState(false),
@@ -2380,7 +2275,7 @@ function Login({ onDemo, onError, error }) {
               localStorage.setItem(REMEMBER_KEY, String(remember));
               try {
                 const { error } = await client.auth.signInWithPassword({
-                  email: user.includes("@") ? user : `${user}@ghaith.local`,
+                  email: user.trim(),
                   password,
                 });
                 if (error)
@@ -2392,11 +2287,12 @@ function Login({ onDemo, onError, error }) {
               }
             }}
           >
-            <Field label="اسم المستخدم أو البريد الإلكتروني">
+            <Field label="البريد الإلكتروني">
               <input
+                type="email"
                 autoComplete="username"
                 required
-                placeholder="اسم المستخدم أو البريد الإلكتروني"
+                placeholder="البريد الإلكتروني"
                 value={user}
                 onChange={(e) => setUser(e.target.value)}
               />

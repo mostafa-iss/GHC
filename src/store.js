@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { authStorage } from "./authStorage";
-import { seed } from "./accounting";
+import { emptyState } from "./accounting";
 import { uploadAttachment, validateAttachment } from "./attachments.js";
 const projectUrl = (import.meta.env.VITE_SUPABASE_URL || "")
   .trim()
@@ -14,11 +14,11 @@ export const client = cloud
       auth: { storage: authStorage },
     })
   : null;
-const KEY = "ghaith-demo-v1";
+const KEY = "ghc-demo-v1";
 export async function readData() {
   if (!cloud) {
     const { _localVersion = 0, ...data } =
-      JSON.parse(localStorage.getItem(KEY) || "null") || seed();
+      JSON.parse(localStorage.getItem(KEY) || "null") || emptyState();
     return { data, version: _localVersion };
   }
   const { data, error } = await client

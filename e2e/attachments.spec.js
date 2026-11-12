@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../tests/support/browser.js";
 import { seed } from "../src/accounting.js";
 test("uploaded file and supplied Google Drive logo share one attachment gallery without duplicate link controls", async ({
   page,
@@ -24,7 +24,7 @@ test("uploaded file and supplied Google Drive logo share one attachment gallery 
     },
   ];
   await page.addInitScript(
-    (d) => localStorage.setItem("ghaith-demo-v1", JSON.stringify(d)),
+    (d) => localStorage.setItem("ghc-demo-v1", JSON.stringify(d)),
     data,
   );
   await page.goto("/");

@@ -1,4 +1,4 @@
-export const REMEMBER_KEY = "ghaith-remember-login";
+export const REMEMBER_KEY = "ghc-remember-login";
 export const authStorage = {
   getItem: (key) => sessionStorage.getItem(key) ?? localStorage.getItem(key),
   setItem(key, value) {

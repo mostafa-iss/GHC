@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../tests/support/browser.js";
 import { seed } from "../src/accounting.js";
 
 test("account chips open the complete posted ledger from home, filtered journals and journal detail; navigation header stays uniform", async ({
@@ -77,7 +77,7 @@ test("account chips open the complete posted ledger from home, filtered journals
     },
   ];
   await page.addInitScript(
-    (d) => localStorage.setItem("ghaith-demo-v1", JSON.stringify(d)),
+    (d) => localStorage.setItem("ghc-demo-v1", JSON.stringify(d)),
     data,
   );
   const errors = [];
@@ -86,9 +86,9 @@ test("account chips open the complete posted ledger from home, filtered journals
     page.getByRole("navigation").getByRole("button", { name, exact: true });
   const header = page.locator(".main > header");
   const checkHeader = async () => {
-    await expect(header).toHaveCSS("background-color", "rgb(35, 76, 96)");
+    await expect(header).toHaveCSS("background-color", "rgb(16, 45, 84)");
     await expect(header).toHaveCSS("height", "52px");
-    await expect(header.locator(".breadcrumb")).toContainText("غيث");
+    await expect(header.locator(".breadcrumb")).toContainText("GHC Academy");
     await expect(header).not.toContainText("المساحة المحاسبية");
     await expect(header).not.toContainText("متصل بالسحابة");
   };
@@ -187,7 +187,7 @@ test("account chips open the complete posted ledger from home, filtered journals
     await checkHeader();
   }
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(header).toHaveCSS("background-color", "rgb(35, 76, 96)");
+  await expect(header).toHaveCSS("background-color", "rgb(16, 45, 84)");
   await expect(header).toHaveCSS("height", "54px");
   expect(errors).toEqual([]);
 });

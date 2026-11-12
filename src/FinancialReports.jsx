@@ -104,7 +104,7 @@ export default function FinancialReports({ kind, data, onAccountOpen }) {
         subtitle,
         headers,
         rows,
-        filename: `ghaith-${kind}-${today()}.xlsx`,
+        filename: `ghc-${kind}-${today()}.xlsx`,
       });
     } catch (e) {
       setError(e.message);

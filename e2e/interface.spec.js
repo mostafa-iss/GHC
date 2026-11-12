@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../tests/support/browser.js";
 import { seed } from "../src/accounting.js";
 
 test("responsive interface keeps focus in dialogs, dismisses menus and drawers, and preserves live journal search", async ({
@@ -39,7 +39,7 @@ test("responsive interface keeps focus in dialogs, dismisses menus and drawers, 
     },
   ];
   await page.addInitScript(
-    (d) => localStorage.setItem("ghaith-demo-v1", JSON.stringify(d)),
+    (d) => localStorage.setItem("ghc-demo-v1", JSON.stringify(d)),
     data,
   );
   const errors = [];

@@ -101,7 +101,7 @@ test("reimport restores Drive URLs for a previously posted entry without modifyi
 });
 test("exported XLSX embeds the actual Ghaith PNG and retains numeric accounting values", async () => {
   const image = new Uint8Array(
-    fs.readFileSync(new URL("../src/assets/ghaith-logo.png", import.meta.url)),
+    fs.readFileSync(new URL("../src/assets/ghc-logo.png", import.meta.url)),
   );
   const { book, sheet } = await brandedWorkbook({
     title: "قائمة الدخل",
@@ -123,7 +123,7 @@ test("exported XLSX embeds the actual Ghaith PNG and retains numeric accounting 
       (k) => k.startsWith("xl/media/") && k.endsWith(".png"),
     ),
   );
-  assert(strFromU8(zip["xl/worksheets/sheet1.xml"]).includes("مركز غيث"));
+  assert(strFromU8(zip["xl/worksheets/sheet1.xml"]).includes("GHC Academy"));
   const read = new ExcelJS.Workbook();
   await read.xlsx.load(bytes);
   assert.equal(read.worksheets[0].getCell("C11").value, 1250.5);

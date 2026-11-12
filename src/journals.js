@@ -79,7 +79,7 @@ function event(data, id, action, details = "") {
       action,
       details,
       at: new Date().toISOString(),
-      actor: "ghaith",
+      actor: "GHC Academy",
     },
   ];
 }
