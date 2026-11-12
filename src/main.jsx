@@ -1700,6 +1700,20 @@ function App() {
                       throw Error(
                         "لا يمكن إضافة حساب فرعي تحت حساب عليه حركات",
                       );
+                    if (
+                      key === "accounts" &&
+                      value.isGroup &&
+                      [
+                        ...data.entries,
+                        ...(data.draftEntries || []),
+                        ...(data.journalTemplates || []),
+                      ].some((e) =>
+                        e.lines.some((l) => l.accountId === value.id),
+                      )
+                    )
+                      throw Error(
+                        "لا يمكن تحويل حساب مستخدم في القيود أو القوالب إلى حساب تجميعي",
+                      );
                     if (value.parentId) {
                       let p = value.parentId;
                       const visited = new Set([value.id]);
@@ -1915,6 +1929,28 @@ function MasterForm({ kind, initial, data, onSave, busy }) {
             >
               <option value="debit">مدين</option>
               <option value="credit">دائن</option>
+            </select>
+          </Field>
+        )}
+        {kind === "account" && (
+          <Field label="نوع الحساب">
+            <select
+              value={
+                v.isGroup || data.accounts.some((a) => a.parentId === v.id)
+                  ? "group"
+                  : "posting"
+              }
+              onChange={(e) =>
+                setV({ ...v, isGroup: e.target.value === "group" })
+              }
+            >
+              <option
+                value="posting"
+                disabled={data.accounts.some((a) => a.parentId === v.id)}
+              >
+                حساب فرعي للتسجيل
+              </option>
+              <option value="group">حساب رئيسي للتجميع فقط</option>
             </select>
           </Field>
         )}

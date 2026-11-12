@@ -1,0 +1,353 @@
+[
+  {
+    "id": "ghc-coa-1",
+    "code": "1",
+    "name": "الأصول",
+    "type": "asset",
+    "parentId": "",
+    "isGroup": true,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-11",
+    "code": "11",
+    "name": "الأصول الثابتة",
+    "type": "asset",
+    "parentId": "ghc-coa-1",
+    "isGroup": true,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-12",
+    "code": "12",
+    "name": "الأصول المتداولة",
+    "type": "asset",
+    "parentId": "ghc-coa-1",
+    "isGroup": true,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-1201",
+    "code": "1201",
+    "name": "البنوك",
+    "type": "asset",
+    "parentId": "ghc-coa-12",
+    "isGroup": true,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-120101",
+    "code": "120101",
+    "name": "بنك ساب - حلول الأنظمة",
+    "type": "asset",
+    "parentId": "ghc-coa-1201",
+    "isGroup": false,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-1202",
+    "code": "1202",
+    "name": "المصروفات المدفوعة مقدمًا",
+    "type": "asset",
+    "parentId": "ghc-coa-12",
+    "isGroup": true,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-1203",
+    "code": "1203",
+    "name": "العملاء",
+    "type": "asset",
+    "parentId": "ghc-coa-12",
+    "isGroup": true,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-120301",
+    "code": "120301",
+    "name": "عملاء GHC",
+    "type": "asset",
+    "parentId": "ghc-coa-1203",
+    "isGroup": false,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-1204",
+    "code": "1204",
+    "name": "الصندوق",
+    "type": "asset",
+    "parentId": "ghc-coa-12",
+    "isGroup": false,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-2",
+    "code": "2",
+    "name": "الالتزامات",
+    "type": "liability",
+    "parentId": "",
+    "isGroup": true,
+    "normalBalance": "credit"
+  },
+  {
+    "id": "ghc-coa-21",
+    "code": "21",
+    "name": "الالتزامات المتداولة",
+    "type": "liability",
+    "parentId": "ghc-coa-2",
+    "isGroup": true,
+    "normalBalance": "credit"
+  },
+  {
+    "id": "ghc-coa-2101",
+    "code": "2101",
+    "name": "الموردون",
+    "type": "liability",
+    "parentId": "ghc-coa-21",
+    "isGroup": false,
+    "normalBalance": "credit"
+  },
+  {
+    "id": "ghc-coa-2102",
+    "code": "2102",
+    "name": "مصروفات مستحقة",
+    "type": "liability",
+    "parentId": "ghc-coa-21",
+    "isGroup": false,
+    "normalBalance": "credit"
+  },
+  {
+    "id": "ghc-coa-2103",
+    "code": "2103",
+    "name": "إيرادات مقدمة",
+    "type": "liability",
+    "parentId": "ghc-coa-21",
+    "isGroup": false,
+    "normalBalance": "credit"
+  },
+  {
+    "id": "ghc-coa-3",
+    "code": "3",
+    "name": "حقوق الملكية",
+    "type": "equity",
+    "parentId": "",
+    "isGroup": true,
+    "normalBalance": "credit"
+  },
+  {
+    "id": "ghc-coa-31",
+    "code": "31",
+    "name": "رأس المال",
+    "type": "equity",
+    "parentId": "ghc-coa-3",
+    "isGroup": false,
+    "normalBalance": "credit"
+  },
+  {
+    "id": "ghc-coa-32",
+    "code": "32",
+    "name": "جاري الشركاء",
+    "type": "equity",
+    "parentId": "ghc-coa-3",
+    "isGroup": true,
+    "normalBalance": "credit"
+  },
+  {
+    "id": "ghc-coa-3201",
+    "code": "3201",
+    "name": "جاري الشريك مصطفى خالد",
+    "type": "equity",
+    "parentId": "ghc-coa-32",
+    "isGroup": false,
+    "normalBalance": "credit"
+  },
+  {
+    "id": "ghc-coa-33",
+    "code": "33",
+    "name": "الأرباح والخسائر المرحلة",
+    "type": "equity",
+    "parentId": "ghc-coa-3",
+    "isGroup": false,
+    "normalBalance": "credit"
+  },
+  {
+    "id": "ghc-coa-4",
+    "code": "4",
+    "name": "الإيرادات ومردوداتها",
+    "type": "revenue",
+    "parentId": "",
+    "isGroup": true,
+    "normalBalance": "credit"
+  },
+  {
+    "id": "ghc-coa-41",
+    "code": "41",
+    "name": "إيرادات النشاط",
+    "type": "revenue",
+    "parentId": "ghc-coa-4",
+    "isGroup": true,
+    "normalBalance": "credit"
+  },
+  {
+    "id": "ghc-coa-4101",
+    "code": "4101",
+    "name": "إيرادات الدورات",
+    "type": "revenue",
+    "parentId": "ghc-coa-41",
+    "isGroup": false,
+    "normalBalance": "credit"
+  },
+  {
+    "id": "ghc-coa-42",
+    "code": "42",
+    "name": "مردودات الإيرادات",
+    "type": "revenue",
+    "parentId": "ghc-coa-4",
+    "isGroup": true,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-4201",
+    "code": "4201",
+    "name": "مردودات الدورات",
+    "type": "revenue",
+    "parentId": "ghc-coa-42",
+    "isGroup": false,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-5",
+    "code": "5",
+    "name": "المصروفات",
+    "type": "expense",
+    "parentId": "",
+    "isGroup": true,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-51",
+    "code": "51",
+    "name": "مصروفات العاملين",
+    "type": "expense",
+    "parentId": "ghc-coa-5",
+    "isGroup": true,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-5101",
+    "code": "5101",
+    "name": "رواتب",
+    "type": "expense",
+    "parentId": "ghc-coa-51",
+    "isGroup": false,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-52",
+    "code": "52",
+    "name": "المصروفات التقنية والتراخيص",
+    "type": "expense",
+    "parentId": "ghc-coa-5",
+    "isGroup": true,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-5201",
+    "code": "5201",
+    "name": "دومين",
+    "type": "expense",
+    "parentId": "ghc-coa-52",
+    "isGroup": false,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-5202",
+    "code": "5202",
+    "name": "ترخيص إلكتروني",
+    "type": "expense",
+    "parentId": "ghc-coa-52",
+    "isGroup": false,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-53",
+    "code": "53",
+    "name": "مصروفات التحويل والخدمات البنكية",
+    "type": "expense",
+    "parentId": "ghc-coa-5",
+    "isGroup": true,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-5301",
+    "code": "5301",
+    "name": "عمولات تحويل",
+    "type": "expense",
+    "parentId": "ghc-coa-53",
+    "isGroup": false,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-5302",
+    "code": "5302",
+    "name": "عمولات بنكية",
+    "type": "expense",
+    "parentId": "ghc-coa-53",
+    "isGroup": false,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-54",
+    "code": "54",
+    "name": "مصروفات التسويق",
+    "type": "expense",
+    "parentId": "ghc-coa-5",
+    "isGroup": true,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-5401",
+    "code": "5401",
+    "name": "إعلانات",
+    "type": "expense",
+    "parentId": "ghc-coa-54",
+    "isGroup": false,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-55",
+    "code": "55",
+    "name": "المصروفات الإدارية والعمومية",
+    "type": "expense",
+    "parentId": "ghc-coa-5",
+    "isGroup": true,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-5501",
+    "code": "5501",
+    "name": "إيجار",
+    "type": "expense",
+    "parentId": "ghc-coa-55",
+    "isGroup": false,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-5502",
+    "code": "5502",
+    "name": "اتصالات وإنترنت",
+    "type": "expense",
+    "parentId": "ghc-coa-55",
+    "isGroup": false,
+    "normalBalance": "debit"
+  },
+  {
+    "id": "ghc-coa-5503",
+    "code": "5503",
+    "name": "أدوات ومستلزمات مكتبية",
+    "type": "expense",
+    "parentId": "ghc-coa-55",
+    "isGroup": false,
+    "normalBalance": "debit"
+  }
+]

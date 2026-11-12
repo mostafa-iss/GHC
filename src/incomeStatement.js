@@ -27,7 +27,9 @@ export function incomeStatement(data, from, to, centerId = "") {
     const rows = data.accounts
       .filter(
         (a) =>
-          a.type === type && !data.accounts.some((c) => c.parentId === a.id),
+          a.type === type &&
+          !a.isGroup &&
+          !data.accounts.some((c) => c.parentId === a.id),
       )
       .map((a) => {
         const values = periods.map((period) => {

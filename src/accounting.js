@@ -17,7 +17,10 @@ export function cents(v) {
 }
 export function postingAccounts(accounts) {
   return accounts.filter(
-    (a) => Boolean(a.parentId) && !accounts.some((x) => x.parentId === a.id),
+    (a) =>
+      !a.isGroup &&
+      Boolean(a.parentId) &&
+      !accounts.some((x) => x.parentId === a.id),
   );
 }
 export function postedEntries(data) {
@@ -38,6 +41,7 @@ export function validateEntry(e, accounts, centers) {
       !accounts.some(
         (a) =>
           a.id === l.accountId &&
+          !a.isGroup &&
           Boolean(a.parentId) &&
           !accounts.some((x) => x.parentId === a.id),
       )

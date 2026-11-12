@@ -60,7 +60,7 @@ begin
    if ((line->>'debit')::numeric>0)=((line->>'credit')::numeric>0) then raise exception 'حدد طرفًا واحدًا لكل سطر'; end if;
    d:=d+(line->>'debit')::numeric;c:=c+(line->>'credit')::numeric;
    if not exists(select 1 from jsonb_array_elements(new_data->'accounts') a where a->>'id'=line->>'accountId') then raise exception 'حساب غير موجود'; end if;
-   if exists(select 1 from jsonb_array_elements(new_data->'accounts') a where a->>'parentId'=line->>'accountId' or (a->>'id'=line->>'accountId' and coalesce(a->>'parentId','')='')) then raise exception 'التسجيل على الحسابات الفرعية فقط'; end if;
+   if exists(select 1 from jsonb_array_elements(new_data->'accounts') a where a->>'parentId'=line->>'accountId' or (a->>'id'=line->>'accountId' and (coalesce(a->>'parentId','')='' or a->>'isGroup'='true'))) then raise exception 'التسجيل على الحسابات الفرعية فقط'; end if;
    if coalesce(line->>'centerId','')<>'' and not exists(select 1 from jsonb_array_elements(new_data->'centers') a where a->>'id'=line->>'centerId') then raise exception 'مركز التكلفة غير موجود'; end if;
   end loop;
   if d<>c or d=0 then raise exception 'القيد غير متوازن'; end if;
@@ -74,7 +74,7 @@ begin
   perform (entry->>'date')::date;
   for line in select value from jsonb_array_elements(entry->'lines') loop
    if coalesce(line->>'debit','') !~ '^\d+$' or coalesce(line->>'credit','') !~ '^\d+$' or ((line->>'debit')::numeric>0 and (line->>'credit')::numeric>0) then raise exception 'مبالغ المسودة غير صالحة'; end if;
-   if coalesce(line->>'accountId','')<>'' and not exists(select 1 from jsonb_array_elements(new_data->'accounts') a where a->>'id'=line->>'accountId' and coalesce(a->>'parentId','')<>'' and not exists(select 1 from jsonb_array_elements(new_data->'accounts') child_row where child_row->>'parentId'=a->>'id')) then raise exception 'اختر آخر حساب فرعي فقط للمسودة'; end if;
+   if coalesce(line->>'accountId','')<>'' and not exists(select 1 from jsonb_array_elements(new_data->'accounts') a where a->>'id'=line->>'accountId' and coalesce(a->>'parentId','')<>'' and coalesce(a->>'isGroup','false')<>'true' and not exists(select 1 from jsonb_array_elements(new_data->'accounts') child_row where child_row->>'parentId'=a->>'id')) then raise exception 'اختر آخر حساب فرعي فقط للمسودة'; end if;
    if coalesce(line->>'centerId','')<>'' and not exists(select 1 from jsonb_array_elements(new_data->'centers') center_row where center_row->>'id'=line->>'centerId') then raise exception 'مركز تكلفة المسودة غير موجود'; end if;
   end loop;
  end loop;

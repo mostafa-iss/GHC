@@ -50,7 +50,7 @@ export default function ChartOfAccounts({
   const tree = useRef(null);
   const selected = model.byId.get(selectedId),
     path = accountPath(data.accounts, selectedId),
-    isFolder = !selected || model.children.has(selected.id),
+    isFolder = !selected || selected.isGroup || model.children.has(selected.id),
     query = normalizeSearch(search),
     matching = data.accounts.filter((a) =>
       normalizeSearch(a.code + " " + a.name).includes(query),
@@ -134,7 +134,7 @@ export default function ChartOfAccounts({
               );
       items[next]?.focus();
     }
-    if (e.key === "ArrowRight" && model.children.has(a.id)) {
+    if (e.key === "ArrowRight" && (a.isGroup || model.children.has(a.id))) {
       e.preventDefault();
       setExpanded((prev) => new Set([...prev, a.id]));
     }
@@ -148,7 +148,7 @@ export default function ChartOfAccounts({
     }
   }
   function node(a, level = 1) {
-    const folder = model.children.has(a.id),
+    const folder = a.isGroup || model.children.has(a.id),
       open = Boolean(query) || expanded.has(a.id),
       Icon = folder ? (open ? FolderOpen : Folder) : FileText;
     if (query && !visible.has(a.id)) return null;
@@ -188,7 +188,7 @@ export default function ChartOfAccounts({
         </div>
         {folder && open && (
           <div role="group">
-            {model.children.get(a.id).map((c) => node(c, level + 1))}
+            {(model.children.get(a.id) || []).map((c) => node(c, level + 1))}
           </div>
         )}
       </div>
@@ -422,7 +422,7 @@ export default function ChartOfAccounts({
             <>
               <div className="chart-account-list">
                 {listed.map((a) => {
-                  const folder = model.children.has(a.id),
+                  const folder = a.isGroup || model.children.has(a.id),
                     Icon = folder ? Folder : FileText;
                   return (
                     <div className="chart-account-row" key={a.id}>

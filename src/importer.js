@@ -201,7 +201,10 @@ export function chartPlan(names, data, overrides = {}) {
     );
     // Root/group labels must not be reused as posting accounts.
     const usable = matches.filter(
-      (a) => a.parentId && !data.accounts.some((x) => x.parentId === a.id),
+      (a) =>
+        !a.isGroup &&
+        a.parentId &&
+        !data.accounts.some((x) => x.parentId === a.id),
     );
     if (usable.length > 1) {
       issues.push("اسم الحساب مكرر في الشجرة: " + name);

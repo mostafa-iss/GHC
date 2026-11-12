@@ -6,7 +6,9 @@ export function balanceSheet(data, to) {
     rows: rows
       .filter(
         (r) =>
-          r.type === type && !data.accounts.some((a) => a.parentId === r.id),
+          r.type === type &&
+          !r.isGroup &&
+          !data.accounts.some((a) => a.parentId === r.id),
       )
       .map((r) => ({
         ...r,
@@ -87,6 +89,7 @@ export function monthlyComparison(data, first, second, centerId = "") {
       .filter(
         (r) =>
           ["revenue", "expense"].includes(r.type) &&
+          !r.isGroup &&
           !data.accounts.some((c) => c.parentId === r.id),
       )
       .map((r) => {
