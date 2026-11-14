@@ -33,6 +33,8 @@ import {
   BookCopy,
   BarChart3,
   ArchiveRestore,
+  ArrowUp,
+  ArrowDown,
   Monitor,
 } from "lucide-react";
 import {
@@ -2117,6 +2119,29 @@ function EntryForm({
         .map((d) => d.url)
         .join("\n"),
     );
+  // UI keys stay local: stable identity keeps account-search state with its row.
+  const [rowKeys, setRowKeys] = useState(() =>
+    entry.lines.map(() => crypto.randomUUID()),
+  );
+  const [orderNotice, setOrderNotice] = useState("");
+  const rowNodes = useRef(new Map());
+  function moveRow(from, to) {
+    if (readOnly || busy || to < 0 || to >= v.lines.length || from === to)
+      return;
+    const move = (items) => {
+      const next = [...items];
+      next.splice(to, 0, next.splice(from, 1)[0]);
+      return next;
+    };
+    const key = rowKeys[from];
+    setV((current) => ({ ...current, lines: move(current.lines) }));
+    setRowKeys(move);
+    setOrderNotice(`تم نقل السطر ${from + 1} إلى الموضع ${to + 1}`);
+    requestAnimationFrame(() => {
+      const row = rowNodes.current.get(key);
+      row?.querySelector("[data-order-button]:not(:disabled)")?.focus();
+    });
+  }
   const lines = readOnly
     ? v.lines.map((l) => ({
         ...l,
@@ -2221,7 +2246,20 @@ function EntryForm({
           </Field>
         </div>
         {err && <div className="error">{err}</div>}
-        <div className="table-scroll entry-lines">
+        {!readOnly && (
+          <p className="entry-order-hint">
+            رتّب السطور بالأسهم، أو اضغط Alt مع سهم لأعلى أو لأسفل داخل السطر.
+            ينتقل الحساب والمبلغ ومركز التكلفة معًا.
+          </p>
+        )}
+        <span className="order-announcement" role="status" aria-live="polite">
+          {orderNotice}
+        </span>
+        <div
+          className={
+            "table-scroll entry-lines " + (!readOnly ? "has-row-order" : "")
+          }
+        >
           <table>
             <thead>
               <tr>
@@ -2236,8 +2274,54 @@ function EntryForm({
             </thead>
             <tbody>
               {lines.map((l, i) => (
-                <tr key={i}>
-                  <td>{i + 1}</td>
+                <tr
+                  key={rowKeys[i]}
+                  ref={(node) => {
+                    if (node) rowNodes.current.set(rowKeys[i], node);
+                    else rowNodes.current.delete(rowKeys[i]);
+                  }}
+                  onKeyDown={(event) => {
+                    if (
+                      !readOnly &&
+                      event.altKey &&
+                      ["ArrowUp", "ArrowDown"].includes(event.key)
+                    ) {
+                      event.preventDefault();
+                      moveRow(i, i + (event.key === "ArrowUp" ? -1 : 1));
+                    }
+                  }}
+                >
+                  <td>
+                    <div className="line-order">
+                      <span>{i + 1}</span>
+                      {!readOnly && (
+                        <div className="line-order-buttons">
+                          <button
+                            type="button"
+                            className="icon"
+                            data-order-button
+                            aria-label={`نقل السطر ${i + 1} لأعلى`}
+                            title="نقل لأعلى"
+                            disabled={busy || i === 0}
+                            onClick={() => moveRow(i, i - 1)}
+                          >
+                            <ArrowUp size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="icon"
+                            data-order-button
+                            aria-label={`نقل السطر ${i + 1} لأسفل`}
+                            title="نقل لأسفل"
+                            disabled={busy || i === lines.length - 1}
+                            onClick={() => moveRow(i, i + 1)}
+                          >
+                            <ArrowDown size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
                   <td>
                     <AccountSelect
                       label={"حساب السطر " + (i + 1)}
@@ -2289,12 +2373,16 @@ function EntryForm({
                       <button
                         type="button"
                         className="icon danger"
-                        onClick={() =>
-                          setV({
-                            ...v,
-                            lines: v.lines.filter((_, j) => i !== j),
-                          })
-                        }
+                        aria-label={`حذف السطر ${i + 1}`}
+                        disabled={busy}
+                        onClick={() => {
+                          setV((current) => ({
+                            ...current,
+                            lines: current.lines.filter((_, j) => i !== j),
+                          }));
+                          setRowKeys((keys) => keys.filter((_, j) => i !== j));
+                          setOrderNotice("");
+                        }}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -2317,7 +2405,14 @@ function EntryForm({
           {!readOnly && (
             <button
               type="button"
-              onClick={() => setV({ ...v, lines: [...v.lines, blankLine()] })}
+              disabled={busy}
+              onClick={() => {
+                setV((current) => ({
+                  ...current,
+                  lines: [...current.lines, blankLine()],
+                }));
+                setRowKeys((keys) => [...keys, crypto.randomUUID()]);
+              }}
             >
               <Plus size={16} />
               إضافة سطر

@@ -400,3 +400,52 @@ nav button.active {
 .devices-panel > p {
   margin: 16px 24px;
 }
+
+.entry-order-hint {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 12px 0;
+}
+.line-order {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.line-order-buttons {
+  display: flex;
+  gap: 2px;
+}
+.line-order-buttons button.icon {
+  width: 26px;
+  min-width: 26px;
+  min-height: 30px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.line-order-buttons button.icon:hover:not(:disabled) {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.entry-lines.has-row-order th:first-child,
+.entry-lines.has-row-order td:first-child {
+  width: 96px;
+  min-width: 96px;
+}
+.order-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media print {
+  .line-order-buttons,
+  .entry-order-hint,
+  .order-announcement {
+    display: none !important;
+  }
+}
