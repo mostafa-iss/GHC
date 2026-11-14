@@ -95,6 +95,12 @@ async function mockStorage(page) {
         refresh_token: "fixture-refresh",
         user,
       });
+    if (path === "/rest/v1/rpc/app_access")
+      return reply({
+        role: "admin",
+        sessionId: "10000000-0000-4000-8000-000000000001",
+      });
+    if (path === "/rest/v1/rpc/app_end_session") return reply(null);
     if (path === "/auth/v1/user") return reply(user);
     if (path === "/rest/v1/accounting_state")
       return reply({ data: server.data, version: server.version });
@@ -157,7 +163,9 @@ async function mockStorage(page) {
     );
   });
   await page.goto("/");
-  await page.getByLabel("البريد الإلكتروني", { exact: true }).fill("fixture@example.test");
+  await page
+    .getByLabel("البريد الإلكتروني", { exact: true })
+    .fill("fixture@example.test");
   await page
     .getByLabel("كلمة المرور", { exact: true })
     .fill("fixture-password");

@@ -18,6 +18,7 @@ import BrandLogo from "./BrandLogo";
 import AttachmentsPanel from "./AttachmentsPanel";
 import AccountChip from "./AccountChip";
 export default function JournalDetail({
+  canDelete = true,
   entry,
   data,
   onBack,
@@ -101,14 +102,16 @@ export default function JournalDetail({
                 <FileDown size={16} />
                 Excel
               </button>
-              <button
-                className="danger"
-                disabled={busy}
-                onClick={() => onState(entry, "delete")}
-              >
-                <Trash2 size={16} />
-                حذف
-              </button>
+              {canDelete && (
+                <button
+                  className="danger"
+                  disabled={busy}
+                  onClick={() => onState(entry, "delete")}
+                >
+                  <Trash2 size={16} />
+                  حذف
+                </button>
+              )}
               {entry.status === "posted" ? (
                 <button disabled={busy} onClick={() => onState(entry, "draft")}>
                   <FilePenLine size={16} />

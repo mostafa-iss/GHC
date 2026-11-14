@@ -362,3 +362,41 @@ nav button.active {
     padding: 12px 0;
   }
 }
+
+.accountant button.danger,
+.accountant [title*="حذف"] {
+  display: none !important;
+}
+.device-secondary {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.devices-panel .card-title h2 {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.devices-panel td {
+  vertical-align: top;
+  min-width: 150px;
+}
+.devices-panel details {
+  font-size: 11px;
+  max-width: 260px;
+  overflow-wrap: anywhere;
+}
+
+.accountant [aria-label^="حذف"] {
+  display: none !important;
+}
+
+/* Editing a draft's lines/files is allowed; removing whole stored records is not. */
+.accountant .modal-backdrop button.danger,
+.accountant .modal-backdrop [title*="حذف"],
+.accountant .modal-backdrop [aria-label^="حذف"] {
+  display: inline-flex !important;
+}
+.devices-panel > p {
+  margin: 16px 24px;
+}

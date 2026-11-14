@@ -1,3 +1,5 @@
+import DevicesPanel from "./DevicesPanel.jsx";
+import { accessRpc, deviceInfo } from "./access.js";
 import IncomeStatement from "./IncomeStatement.jsx";
 import React, { useState, useEffect, useId, useMemo, useRef } from "react";
 import { createRoot } from "react-dom/client";
@@ -31,6 +33,7 @@ import {
   BookCopy,
   BarChart3,
   ArchiveRestore,
+  Monitor,
 } from "lucide-react";
 import {
   types,
@@ -114,6 +117,7 @@ const pages = [
   ["balance", "قائمة المركز المالي", Scale],
   ["backup", "النسخ الاحتياطية", ArchiveRestore],
   ["audit", "سجل التعديلات", BookOpen],
+  ["devices", "الأجهزة والجلسات", Monitor],
 ];
 function App() {
   const [session, setSession] = useState(null),
@@ -135,6 +139,9 @@ function App() {
     }),
     [side, setSide] = useState(false),
     [audits, setAudits] = useState([]);
+  const [access, setAccess] = useState(null);
+  const [accessError, setAccessError] = useState("");
+  const isAdmin = !cloud || access?.role === "admin";
   const dialogRef = useRef(null),
     sidebarRef = useRef(null);
   useOverlayFocus(Boolean(modal), dialogRef);
@@ -182,8 +189,38 @@ function App() {
     }
   }
   useEffect(() => {
-    if (session) refresh();
-  }, [session]);
+    if (!session || !cloud) return;
+    let stopped = false;
+    async function heartbeat() {
+      try {
+        const a = await accessRpc(client, "app_access", {
+          device_info: deviceInfo(),
+        });
+        if (stopped) return;
+        setAccess({ ...a, userId: session.user.id });
+        setAccessError("");
+      } catch (e) {
+        if (stopped) return;
+        setAccess(null);
+        setData(emptyState());
+        setAccessError(e.message);
+      }
+    }
+    heartbeat();
+    const timer = setInterval(heartbeat, 60000);
+    const visible = () => {
+      if (document.visibilityState === "visible") heartbeat();
+    };
+    document.addEventListener("visibilitychange", visible);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", visible);
+    };
+  }, [session?.user?.id, session?.access_token]);
+  useEffect(() => {
+    if (session && (!cloud || access?.userId === session.user?.id)) refresh();
+  }, [session?.user?.id, access?.userId, session?.demo]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(""), 4000);
@@ -226,7 +263,7 @@ function App() {
       else
         client
           .from("accounting_audit")
-          .select("id,created_at,description")
+          .select("id,created_at,description,actor")
           .order("id", { ascending: false })
           .limit(200)
           .then(({ data, error }) =>
@@ -257,6 +294,7 @@ function App() {
     });
   }
   async function restoreBackup(plan, expectedVersion) {
+    if (!isAdmin) throw Error("استرجاع النسخ للأدمن فقط");
     setBusy(true);
     setError("");
     try {
@@ -381,6 +419,10 @@ function App() {
     }
   }
   function journalAction(e, operation) {
+    if (operation === "delete" && !isAdmin) {
+      setError("حذف القيود للأدمن فقط");
+      return;
+    }
     action(async () => {
       if (
         operation === "delete" &&
@@ -591,10 +633,39 @@ function App() {
         error={error}
       />
     );
+  if (cloud && (!access || access.userId !== session.user?.id))
+    return (
+      <div className="login">
+        <section className="login-card">
+          <BrandLogo className="login-logo" />
+          <h1>التحقق من صلاحيات الحساب</h1>
+          {accessError ? (
+            <>
+              <div className="error" role="alert">
+                {accessError}
+              </div>
+              <p>
+                إذا لم تُفعّل الصلاحيات بعد، شغّل ترقية
+                003_roles_and_sessions.sql من SQL Editor.
+              </p>
+              <button onClick={() => window.location.reload()}>
+                إعادة المحاولة
+              </button>
+              <button onClick={() => client.auth.signOut({ scope: "local" })}>
+                تسجيل الخروج
+              </button>
+            </>
+          ) : (
+            <p role="status">جاري التحقق من الجلسة…</p>
+          )}
+        </section>
+      </div>
+    );
   return (
     <div
       className={
         "app " +
+        (isAdmin ? "admin " : "accountant ") +
         (["entries", "journal"].includes(page) ? "journal-workspace" : "")
       }
     >
@@ -628,31 +699,35 @@ function App() {
         </button>
         <p className="nav-label">القائمة الرئيسية</p>
         <nav>
-          {pages.map(([id, label, Icon], i) => (
-            <React.Fragment key={id}>
-              {id === "finance" && <p className="nav-label">المالية</p>}
-              {id === "templates" && <p className="nav-label">القوالب</p>}
-              {id === "ledger" && <p className="nav-label">التقارير المالية</p>}
-              {id === "backup" && <p className="nav-label">إدارة البيانات</p>}
-              <button
-                className={
-                  page === id || (page === "journal" && id === "entries")
-                    ? "active"
-                    : ""
-                }
-                aria-current={
-                  page === id || (page === "journal" && id === "entries")
-                    ? "page"
-                    : undefined
-                }
-                onClick={() => nav(id)}
-              >
-                <Icon size={19} />
-                {label}
-                {page === id && <ChevronLeft size={15} />}
-              </button>
-            </React.Fragment>
-          ))}
+          {pages
+            .filter(([id]) => id !== "devices" || (isAdmin && cloud))
+            .map(([id, label, Icon], i) => (
+              <React.Fragment key={id}>
+                {id === "finance" && <p className="nav-label">المالية</p>}
+                {id === "templates" && <p className="nav-label">القوالب</p>}
+                {id === "ledger" && (
+                  <p className="nav-label">التقارير المالية</p>
+                )}
+                {id === "backup" && <p className="nav-label">إدارة البيانات</p>}
+                <button
+                  className={
+                    page === id || (page === "journal" && id === "entries")
+                      ? "active"
+                      : ""
+                  }
+                  aria-current={
+                    page === id || (page === "journal" && id === "entries")
+                      ? "page"
+                      : undefined
+                  }
+                  onClick={() => nav(id)}
+                >
+                  <Icon size={19} />
+                  {label}
+                  {page === id && <ChevronLeft size={15} />}
+                </button>
+              </React.Fragment>
+            ))}
         </nav>
         <div className="sidebar-bottom">
           <button className="backup-button" disabled={busy} onClick={backup}>
@@ -684,14 +759,25 @@ function App() {
             {!cloud && <span className="mode demo">وضع تجريبي محلي</span>}
             <span className="avatar">G</span>
             <span>
-              GHC Academy<small>محاسب</small>
+              GHC Academy<small>{isAdmin ? "أدمن" : "محاسب"}</small>
             </span>
             <button
               className="icon"
               title="تسجيل الخروج"
               onClick={() =>
                 action(async () => {
-                  if (cloud) await client.auth.signOut({ scope: "local" });
+                  if (cloud) {
+                    try {
+                      await accessRpc(client, "app_end_session", {
+                        target_session: access.sessionId,
+                      });
+                    } catch {
+                      /* Logout still clears local tokens if the session already ended. */
+                    }
+                    await client.auth.signOut({ scope: "local" });
+                    setAccess(null);
+                    setData(emptyState());
+                  }
                   setSession(null);
                 })
               }
@@ -780,6 +866,8 @@ function App() {
                       ledger: "تفاصيل حركة الحساب والرصيد خلال الفترة المحددة.",
                       trial: "مراجعة أرصدة الحسابات وحركاتها المدينة والدائنة.",
                       income: "متابعة الإيرادات والمصروفات وصافي نتائج النشاط.",
+                      devices:
+                        "متابعة الحسابات والأجهزة وإنهاء الجلسات غير المرغوبة.",
                       audit:
                         "سجل وقت التغييرات على البيانات باستخدام الحساب المشترك.",
                     }[page]
@@ -798,6 +886,7 @@ function App() {
                     "balance",
                     "comparison",
                     "income",
+                    "devices",
                     "backup",
                   ].includes(page)
                     ? "journal-generic-actions"
@@ -845,6 +934,7 @@ function App() {
           )}
           {page === "journal" && currentJournal ? (
             <JournalDetail
+              canDelete={isAdmin}
               entry={currentJournal}
               data={data}
               onBack={() => nav("entries")}
@@ -890,8 +980,15 @@ function App() {
               onAccountOpen={openAccountLedger}
               onJournalOpen={openJournal}
             />
+          ) : page === "devices" ? (
+            isAdmin && cloud ? (
+              <DevicesPanel client={client} sessionId={access.sessionId} />
+            ) : (
+              <div className="error">هذه الصفحة للأدمن فقط</div>
+            )
           ) : page === "backup" ? (
             <BackupPanel
+              canRestore={isAdmin}
               data={data}
               version={version}
               busy={busy}
@@ -1203,7 +1300,15 @@ function App() {
                                   },
                                 )}
                               </td>
-                              <td>GHC Academy (حساب مشترك)</td>
+                              <td>
+                                {a.actor ===
+                                "526918f2-5859-4b08-a1d4-97a44fb783a7"
+                                  ? "أدمن"
+                                  : a.actor ===
+                                      "23a39f9a-a293-4500-ae73-8c826b984356"
+                                    ? "حساب المحاسبين"
+                                    : a.actor || "حساب مشترك"}
+                              </td>
                               <td>{a.description}</td>
                             </tr>
                           ))}
@@ -1288,32 +1393,35 @@ function App() {
                     setFilter={setFilter}
                     data={data}
                   />
-                  <div className="journal-reset">
-                    <button
-                      className="danger"
-                      disabled={busy}
-                      onClick={() =>
-                        action(async () => {
-                          if (
-                            !confirm(
-                              "حذف جميع القيود والمسودات نهائيًا والبدء من الصفر؟ ستبقى شجرة الحسابات ومراكز التكلفة.",
+                  {isAdmin && (
+                    <div className="journal-reset">
+                      <button
+                        className="danger"
+                        disabled={busy}
+                        onClick={() =>
+                          action(async () => {
+                            if (
+                              !confirm(
+                                "حذف جميع القيود والمسودات نهائيًا والبدء من الصفر؟ ستبقى شجرة الحسابات ومراكز التكلفة.",
+                              )
                             )
-                          )
-                            return;
-                          const next = resetJournals(data);
-                          await persist(next);
-                          await cleanupJournalFiles(
-                            next,
-                            allEntries.flatMap((e) => e.attachments || []),
-                          );
-                          setToast("تم حذف جميع القيود والمسودات");
-                        })
-                      }
-                    >
-                      حذف جميع القيود والبدء من جديد
-                    </button>
-                  </div>
+                              return;
+                            const next = resetJournals(data);
+                            await persist(next);
+                            await cleanupJournalFiles(
+                              next,
+                              allEntries.flatMap((e) => e.attachments || []),
+                            );
+                            setToast("تم حذف جميع القيود والمسودات");
+                          })
+                        }
+                      >
+                        حذف جميع القيود والبدء من جديد
+                      </button>
+                    </div>
+                  )}
                   <JournalList
+                    canDelete={isAdmin}
                     queryKey={JSON.stringify(filter)}
                     entries={visibleEntries}
                     data={data}

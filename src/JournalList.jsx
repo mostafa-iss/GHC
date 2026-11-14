@@ -14,6 +14,7 @@ export const journalLabel = (e) =>
     ? "#" + String(e.number).padStart(4, "0")
     : "مسودة D-" + String(e.draftNumber || 1).padStart(4, "0");
 export default function JournalList({
+  canDelete = true,
   entries,
   data,
   open,
@@ -188,22 +189,23 @@ export default function JournalList({
                         تحويل إلى مسودة
                       </button>
                     )}
-                    {e.status !== "deleted" ? (
-                      <button
-                        className="danger"
-                        disabled={busy}
-                        onClick={() => onState(e, "delete")}
-                      >
-                        حذف القيد
-                      </button>
-                    ) : (
-                      <button
-                        disabled={busy}
-                        onClick={() => onState(e, "restore")}
-                      >
-                        استعادة القيد
-                      </button>
-                    )}
+                    {canDelete &&
+                      (e.status !== "deleted" ? (
+                        <button
+                          className="danger"
+                          disabled={busy}
+                          onClick={() => onState(e, "delete")}
+                        >
+                          حذف القيد
+                        </button>
+                      ) : (
+                        <button
+                          disabled={busy}
+                          onClick={() => onState(e, "restore")}
+                        >
+                          استعادة القيد
+                        </button>
+                      ))}
                   </div>
                 )}
               </div>
