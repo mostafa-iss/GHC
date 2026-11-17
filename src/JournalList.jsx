@@ -26,10 +26,21 @@ export default function JournalList({
   onCopy,
   onTemplate,
   queryKey,
+  selectionKey,
+  onBulkAction,
 }) {
   const [page, setPage] = useState(0),
     [menu, setMenu] = useState(null);
   const size = 20;
+  const [selected, setSelected] = useState(new Set());
+  useEffect(() => setSelected(new Set()), [selectionKey]);
+  useEffect(() => {
+    const ids = new Set(entries.map((e) => e.id));
+    setSelected((previous) => {
+      const next = new Set([...previous].filter((id) => ids.has(id)));
+      return next.size === previous.size ? previous : next;
+    });
+  }, [entries]);
   useEffect(() => {
     setPage(0);
     setMenu(null);
@@ -51,10 +62,94 @@ export default function JournalList({
   }, [menu]);
   const total = Math.max(1, Math.ceil(entries.length / size));
   const actualPage = Math.min(page, total - 1);
+  const pageEntries = entries.slice(actualPage * size, (actualPage + 1) * size);
+  const picked = entries.filter((e) => selected.has(e.id));
+  const allPage =
+    pageEntries.length > 0 && pageEntries.every((e) => selected.has(e.id));
+  function togglePage(checked) {
+    setSelected((previous) => {
+      const next = new Set(previous);
+      for (const e of pageEntries) checked ? next.add(e.id) : next.delete(e.id);
+      return next;
+    });
+  }
+  async function runBulk(operation) {
+    if (!operation || !picked.length || busy) return;
+    const completed = await onBulkAction(operation, picked);
+    if (completed !== false) setSelected(new Set());
+  }
   const account = (id) =>
     data.accounts.find((a) => a.id === id)?.name || "حساب غير محدد";
   return (
     <section className="journal-results">
+      {onBulkAction && (
+        <div className="journal-selection-toolbar">
+          <label className="journal-check">
+            <input
+              type="checkbox"
+              aria-label="تحديد الصفحة الحالية"
+              disabled={busy || !pageEntries.length}
+              checked={allPage}
+              ref={(node) => {
+                if (node)
+                  node.indeterminate =
+                    !allPage && pageEntries.some((e) => selected.has(e.id));
+              }}
+              onChange={(e) => togglePage(e.target.checked)}
+            />
+            تحديد
+          </label>
+          <select
+            aria-label="نطاق تحديد القيود"
+            value=""
+            disabled={busy || !entries.length}
+            onChange={(e) => {
+              if (e.target.value === "none") setSelected(new Set());
+              if (e.target.value === "page")
+                setSelected(new Set(pageEntries.map((e) => e.id)));
+              if (e.target.value === "all")
+                setSelected(new Set(entries.map((e) => e.id)));
+            }}
+          >
+            <option value="" disabled>
+              نطاق التحديد
+            </option>
+            <option value="none">إلغاء التحديد</option>
+            <option value="page">الكل — الصفحة الحالية</option>
+            <option value="all">
+              الكل — جميع نتائج البحث ({entries.length})
+            </option>
+          </select>
+          <strong aria-live="polite">{picked.length} محدد</strong>
+          <select
+            aria-label="إجراءات القيود المحددة"
+            value=""
+            disabled={busy || !picked.length}
+            onChange={(e) => runBulk(e.target.value)}
+          >
+            <option value="" disabled>
+              الإجراءات
+            </option>
+            <option value="print">طباعة / PDF</option>
+            <option value="export">تصدير إلى Excel</option>
+            <option
+              value="post"
+              disabled={!picked.some((e) => e.status === "draft")}
+            >
+              ترحيل المسودات (
+              {picked.filter((e) => e.status === "draft").length})
+            </option>
+            <option
+              value="draft"
+              disabled={!picked.some((e) => e.status === "posted")}
+            >
+              تحويل المرحّل إلى مسودة (
+              {picked.filter((e) => e.status === "posted").length})
+            </option>
+            {canDelete && <option value="delete">حذف المحدد</option>}
+          </select>
+        </div>
+      )}
       <div className="journal-results-heading">
         <span>النتائج ({entries.length})</span>
         <div className="journal-pagination">
@@ -84,12 +179,36 @@ export default function JournalList({
           <p>لا توجد قيود مطابقة للبحث.</p>
         </div>
       ) : (
-        entries.slice(actualPage * size, (actualPage + 1) * size).map((e) => {
+        pageEntries.map((e) => {
           const debits = e.lines.filter((l) => l.debit > 0),
             credits = e.lines.filter((l) => l.credit > 0);
           const docs = entryDocuments(e, data.entryDocuments?.[e.id]);
           return (
-            <article key={e.id} className="journal-row">
+            <article
+              key={e.id}
+              className={
+                "journal-row" +
+                (onBulkAction ? " has-selection" : "") +
+                (selected.has(e.id) ? " is-selected" : "")
+              }
+            >
+              {onBulkAction && (
+                <input
+                  className="journal-select-row"
+                  type="checkbox"
+                  aria-label={"تحديد " + journalLabel(e)}
+                  disabled={busy}
+                  checked={selected.has(e.id)}
+                  onChange={(event) => {
+                    const checked = event.target.checked;
+                    setSelected((previous) => {
+                      const next = new Set(previous);
+                      checked ? next.add(e.id) : next.delete(e.id);
+                      return next;
+                    });
+                  }}
+                />
+              )}
               <div className="journal-row-main">
                 <button className="journal-title" onClick={() => open(e)}>
                   {e.date} — {journalLabel(e)}

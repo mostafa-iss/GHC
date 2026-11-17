@@ -1,3 +1,4 @@
+import ActivityLog from "./ActivityLog.jsx";
 import React, { useState } from "react";
 import {
   ArrowRight,
@@ -19,6 +20,8 @@ import AttachmentsPanel from "./AttachmentsPanel";
 import AccountChip from "./AccountChip";
 export default function JournalDetail({
   canDelete = true,
+  activityClient,
+  activityVersion,
   entry,
   data,
   onBack,
@@ -34,9 +37,6 @@ export default function JournalDetail({
   const account = (id) => data.accounts.find((a) => a.id === id);
   const d = entry.lines.reduce((s, l) => s + (l.debit || 0), 0),
     c = entry.lines.reduce((s, l) => s + (l.credit || 0), 0);
-  const events = (data.journalEvents || [])
-    .filter((e) => e.entryId === entry.id)
-    .sort((a, b) => b.at.localeCompare(a.at));
   return (
     <div className="journal-detail">
       <div className="journal-detail-heading">
@@ -213,32 +213,20 @@ export default function JournalDetail({
           </div>
         ) : (
           <div className="journal-history">
-            <p>
-              تاريخ الإنشاء:{" "}
+            <p className="activity-note">
+              تاريخ إنشاء القيد:{" "}
               {entry.createdAt
-                ? new Date(entry.createdAt).toLocaleString("ar-SA", {
-                    calendar: "gregory",
+                ? new Date(entry.createdAt).toLocaleString("ar-EG", {
+                    timeZone: "Africa/Cairo",
                   })
                 : "غير مسجل في البيانات القديمة"}
             </p>
-            {events.map((e) => (
-              <article key={e.id}>
-                <strong>{e.action}</strong>
-                <span>
-                  {new Date(e.at).toLocaleString("ar-SA", {
-                    calendar: "gregory",
-                  })}
-                </span>
-                <p>{e.details}</p>
-                <small>{e.actor} — الحساب المشترك</small>
-              </article>
-            ))}
-            {!events.length && (
-              <p className="muted">
-                تظهر هنا عمليات المسودة والترحيل والحذف التي تتم بعد هذا
-                التحديث.
-              </p>
-            )}
+            <ActivityLog
+              client={activityClient}
+              data={data}
+              entryId={entry.id}
+              version={activityVersion}
+            />
           </div>
         )}
       </section>

@@ -1,3 +1,5 @@
+import ActivityLog from "./ActivityLog.jsx";
+import BatchJournalPrint from "./BatchJournalPrint.jsx";
 import JournalSort from "./JournalSort.jsx";
 import DevicesPanel from "./DevicesPanel.jsx";
 import { accessRpc, deviceInfo } from "./access.js";
@@ -142,7 +144,7 @@ function App() {
       search: "",
     }),
     [side, setSide] = useState(false),
-    [audits, setAudits] = useState([]);
+    [printEntries, setPrintEntries] = useState([]);
   const [journalSort, setJournalSort] = useState({
     field: "date",
     direction: "desc",
@@ -265,20 +267,6 @@ function App() {
       setBusy(false);
     }
   }
-  useEffect(() => {
-    if (page === "audit") {
-      if (!cloud) setAudits(data.audit || []);
-      else
-        client
-          .from("accounting_audit")
-          .select("id,created_at,description,actor")
-          .order("id", { ascending: false })
-          .limit(200)
-          .then(({ data, error }) =>
-            error ? setError(error.message) : setAudits(data),
-          );
-    }
-  }, [page, data]);
   async function backupSnapshot(fresh) {
     const blob = await createBackupArchive(
       fresh,
@@ -463,6 +451,54 @@ function App() {
         }[operation],
       );
     });
+  }
+  async function bulkJournalAction(operation, selected) {
+    if (operation === "delete" && !isAdmin) {
+      setError("حذف القيود للأدمن فقط");
+      return false;
+    }
+    if (operation === "print") {
+      setPrintEntries(selected);
+      return true;
+    }
+    let completed = false;
+    await action(async () => {
+      if (operation === "export") {
+        await exportJournals(data, selected, {
+          title: "القيود المحددة",
+          filename: `ghc-selected-${today()}.xlsx`,
+        });
+        completed = true;
+        return;
+      }
+      const applicable = selected.filter((e) =>
+        operation === "post"
+          ? e.status === "draft"
+          : operation === "draft"
+            ? e.status === "posted"
+            : operation === "delete",
+      );
+      if (!applicable.length) return;
+      const label = {
+        post: "ترحيل",
+        draft: "تحويل إلى مسودة",
+        delete: "حذف نهائي",
+      }[operation];
+      if (!confirm(`${label}: ${applicable.length} من القيود المحددة؟`)) return;
+      const next = applicable.reduce(
+        (state, e) => changeJournalState(state, e.id, operation),
+        data,
+      );
+      await persist(next);
+      completed = true;
+      if (operation === "delete")
+        await cleanupJournalFiles(
+          next,
+          applicable.flatMap((e) => e.attachments || []),
+        );
+      setToast(`تم ${label} ${applicable.length} قيد`);
+    });
+    return completed;
   }
   function downloadJournals(entries, title = "اليومية") {
     return action(() =>
@@ -882,7 +918,7 @@ function App() {
                       devices:
                         "متابعة الحسابات والأجهزة وإنهاء الجلسات غير المرغوبة.",
                       audit:
-                        "سجل وقت التغييرات على البيانات باستخدام الحساب المشترك.",
+                        "سجل العمليات ووقت تنفيذها والحساب الذي نفّذها.",
                     }[page]
                   }
                 </p>
@@ -947,6 +983,8 @@ function App() {
           )}
           {page === "journal" && currentJournal ? (
             <JournalDetail
+              activityClient={cloud ? client : null}
+              activityVersion={version}
               canDelete={isAdmin}
               entry={currentJournal}
               data={data}
@@ -1275,60 +1313,11 @@ function App() {
                 </section>
               )}
               {page === "audit" && (
-                <section className="card">
-                  <div className="card-title">
-                    <h2>سجل التعديلات</h2>
-                    <span className="muted">
-                      الحساب مشترك · عرض أحدث 200 عملية بالسحابة
-                    </span>
-                  </div>
-                  {!audits.length ? (
-                    <Empty
-                      text="لا توجد تعديلات مسجلة"
-                      sub="تظهر عمليات الحفظ هنا بعد تسجيلها."
-                    />
-                  ) : (
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>التاريخ والوقت</th>
-                          <th>المستخدم</th>
-                          <th>العملية</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...audits]
-                          .sort((a, b) =>
-                            (b.created_at || b.at).localeCompare(
-                              a.created_at || a.at,
-                            ),
-                          )
-                          .map((a, i) => (
-                            <tr key={a.id || i}>
-                              <td>
-                                {new Date(a.created_at || a.at).toLocaleString(
-                                  "ar-SA",
-                                  {
-                                    calendar: "gregory",
-                                  },
-                                )}
-                              </td>
-                              <td>
-                                {a.actor ===
-                                "526918f2-5859-4b08-a1d4-97a44fb783a7"
-                                  ? "أدمن"
-                                  : a.actor ===
-                                      "23a39f9a-a293-4500-ae73-8c826b984356"
-                                    ? "حساب المحاسبين"
-                                    : a.actor || "حساب مشترك"}
-                              </td>
-                              <td>{a.description}</td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  )}
-                </section>
+                <ActivityLog
+                  client={cloud ? client : null}
+                  data={data}
+                  version={version}
+                />
               )}
               {page === "entries" && (
                 <>
@@ -1439,6 +1428,8 @@ function App() {
                   )}
                   <JournalList
                     canDelete={isAdmin}
+                    selectionKey={JSON.stringify(filter)}
+                    onBulkAction={bulkJournalAction}
                     queryKey={JSON.stringify({ filter, journalSort })}
                     showCreatedAt={journalSort.field === "createdAt"}
                     entries={visibleEntries}
@@ -1641,6 +1632,11 @@ function App() {
           )}
         </main>
       </div>
+      <BatchJournalPrint
+        entries={printEntries}
+        data={data}
+        onDone={() => setPrintEntries([])}
+      />
       {modal && (
         <div className="modal-backdrop">
           <section

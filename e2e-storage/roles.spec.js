@@ -81,6 +81,23 @@ async function setup(page, role) {
       return server.revoked || server.blocked
         ? reply({ message: "جلسة منتهية أو الترقية غير متاحة" }, 403)
         : reply({ role, sessionId: sid });
+    if (path === "/rest/v1/rpc/app_activity") {
+      const args = route.request().postDataJSON();
+      return reply([
+        {
+          id: 100,
+          created_at: new Date().toISOString(),
+          actor: user.id,
+          actor_email: user.email,
+          actor_name: user.email,
+          actor_role: role,
+          entry_id: args.target_entry || "draft",
+          entry_number: "D-1",
+          action: "إنشاء مسودة",
+          description: "إنشاء مسودة من الخادم",
+        },
+      ]);
+    }
     if (path === "/rest/v1/accounting_state")
       return reply({ data: server.data, version: server.version });
     if (path === "/rest/v1/rpc/save_accounting_state") {
@@ -136,6 +153,12 @@ test("accountant can post and return to draft but has no delete/reset/restore or
   await expect(
     page.getByRole("button", { name: "الأجهزة والجلسات", exact: true }),
   ).toHaveCount(0);
+  await page
+    .getByRole("checkbox", { name: "تحديد الصفحة الحالية", exact: true })
+    .check();
+  await expect(
+    page.locator('.journal-selection-toolbar option[value="delete"]'),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "حذف جميع القيود والبدء من جديد" }),
   ).toHaveCount(0);
@@ -151,6 +174,14 @@ test("accountant can post and return to draft but has no delete/reset/restore or
     page.getByRole("button", { name: "تحويل إلى مسودة", exact: true }),
   ).toBeVisible();
   expect(server.data.entries).toHaveLength(1);
+  await page.getByRole("button", { name: "سجل القيد", exact: true }).click();
+  await expect(page.locator(".activity-log")).toContainText(
+    "accountant@example.test",
+  );
+  await expect(page.locator(".activity-log")).toContainText(
+    "إنشاء مسودة من الخادم",
+  );
+  await page.getByRole("button", { name: "قيد اليومية", exact: true }).click();
   page.once("dialog", (d) => d.accept());
   await page
     .getByRole("button", { name: "تحويل إلى مسودة", exact: true })
@@ -163,6 +194,13 @@ test("accountant can post and return to draft but has no delete/reset/restore or
     .getByRole("button", { name: "النسخ الاحتياطية", exact: true })
     .click();
   await expect(page.getByLabel("ملف النسخة الاحتياطية")).toHaveCount(0);
+  await page
+    .getByRole("navigation")
+    .getByRole("button", { name: "سجل التعديلات", exact: true })
+    .click();
+  await expect(page.locator(".activity-log")).toContainText(
+    "accountant@example.test",
+  );
   await expect(
     page
       .getByRole("button", { name: "تنزيل نسخة احتياطية", exact: true })

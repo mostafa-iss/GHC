@@ -514,3 +514,102 @@ nav button.active {
     display: none !important;
   }
 }
+.journal-selection-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.journal-selection-toolbar select {
+  width: auto;
+  min-width: 160px;
+  max-width: 100%;
+}
+.journal-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.journal-check input,
+.journal-select-row {
+  width: 17px;
+  min-height: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.journal-row.has-selection {
+  position: relative;
+  padding-inline-start: 46px;
+}
+.journal-select-row {
+  position: absolute;
+  inset-inline-start: 16px;
+  top: 25px;
+}
+.journal-row.is-selected {
+  background: #edf3fb;
+  box-shadow: inset -3px 0 var(--accent);
+}
+.activity-note,
+.activity-legacy {
+  padding: 12px 20px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.activity-log small {
+  display: block;
+  color: var(--muted);
+}
+.activity-user {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.activity-log td {
+  vertical-align: top;
+  min-width: 140px;
+}
+.batch-journal-print {
+  display: none;
+}
+@media (max-width: 760px) {
+  .journal-selection-toolbar {
+    padding: 12px;
+    gap: 8px;
+  }
+  .journal-selection-toolbar select {
+    min-width: 0;
+    flex: 1 1 45%;
+  }
+  .journal-row.has-selection {
+    padding-inline-start: 34px;
+  }
+  .journal-select-row {
+    inset-inline-start: 9px;
+  }
+}
+@media print {
+  .journal-selection-toolbar,
+  .journal-select-row {
+    display: none !important;
+  }
+  body.printing-journals > :not(.batch-journal-print) {
+    display: none !important;
+  }
+  body.printing-journals .batch-journal-print {
+    display: block !important;
+  }
+  .batch-print-entry {
+    break-after: page;
+    padding: 8mm;
+  }
+  .batch-print-entry:last-child {
+    break-after: auto;
+  }
+  .batch-print-entry tr {
+    break-inside: avoid;
+  }
+}

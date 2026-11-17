@@ -49,10 +49,22 @@ test("database enforces roles, preserves journals, tracks trusted session identi
       `insert into storage.objects values('40000000-0000-4000-8000-000000000001','attachments','old.pdf'),('40000000-0000-4000-8000-000000000002','attachments','orphan.pdf')`,
     );
     await db.exec(sql("migrations/003_roles_and_sessions.sql"));
+    await db.exec(sql("migrations/004_activity_identity.sql"));
     assert.deepEqual(
       (await db.query("select data from accounting_state")).rows[0].data,
       initial,
     );
+    await db.query(
+      "insert into accounting_audit(actor,description) values($1,'سجل قديم')",
+      [accountant],
+    );
+    await db.exec(sql("migrations/004_activity_identity.sql"));
+    const historical = (
+      await db.query(
+        "select actor_email from accounting_audit where description='سجل قديم'",
+      )
+    ).rows[0];
+    assert.equal(historical.actor_email, "staff@example.test");
     async function login(uid, sid) {
       await db.exec("set role authenticated");
       await db.query(
@@ -115,6 +127,54 @@ test("database enforces roles, preserves journals, tracks trusted session identi
     await save(d);
     d.draftEntries[0].description = "edited draft";
     await save(d);
+    const history = (
+      await db.query("select app_activity('draft',null) as rows")
+    ).rows[0].rows;
+    assert.deepEqual(
+      history.map((r) => r.action),
+      ["تعديل مسودة", "تحويل إلى مسودة", "ترحيل القيد", "إنشاء مسودة"],
+    );
+    assert(
+      history.every(
+        (r) =>
+          r.actor === accountant &&
+          r.actor_email === "staff@example.test" &&
+          r.actor_role === "accountant",
+      ),
+    );
+    const older = (
+      await db.query("select app_activity('draft',$1) as rows", [history[0].id])
+    ).rows[0].rows;
+    assert.equal(older.length, history.length - 1);
+    assert(older.every((r) => r.id < history[0].id));
+    const forgedEvent = structuredClone(d);
+    forgedEvent.journalEvents.push({
+      id: "forged-client-event",
+      entryId: "draft",
+      actor: admin,
+      action: "عملية مزورة",
+    });
+    await save(forgedEvent);
+    d = forgedEvent;
+    const trusted = (
+      await db.query("select app_activity('draft',null) as rows")
+    ).rows[0].rows;
+    assert.equal(trusted.length, history.length);
+    await assert.rejects(
+      db.query(
+        "insert into accounting_audit(actor,description) values($1,'forged')",
+        [admin],
+      ),
+      /permission denied/,
+    );
+    await assert.rejects(
+      db.query("update accounting_audit set actor=$1", [admin]),
+      /permission denied/,
+    );
+    await assert.rejects(
+      db.query("delete from accounting_audit"),
+      /permission denied/,
+    );
     await assert.rejects(
       save(changeJournalState(d, "posted", "delete")),
       /للأدمن فقط/,
@@ -201,6 +261,10 @@ test("database enforces roles, preserves journals, tracks trusted session identi
     );
     await assert.rejects(access(), /إنهاء هذه الجلسة/);
     await assert.rejects(
+      db.query("select app_activity(null,null)"),
+      /غير صالحة/,
+    );
+    await assert.rejects(
       db.query(
         "insert into storage.objects(id,bucket_id,name) values('50000000-0000-4000-8000-000000000001','attachments','blocked.pdf')",
       ),
@@ -222,6 +286,12 @@ test("database enforces roles, preserves journals, tracks trusted session identi
     await assert.rejects(access(), /غير مصرح/);
     await login(admin, adminSid);
     await save(changeJournalState((await state()).data, "posted", "delete"));
+    const removedHistory = (
+      await db.query("select app_activity('posted',null) as rows")
+    ).rows[0].rows;
+    assert.equal(removedHistory[0].action, "حذف قيد");
+    assert.equal(removedHistory[0].actor, admin);
+    assert.equal(removedHistory[0].actor_email, "admin@example.test");
     await db.query("select app_end_session($1)", [adminSid]);
     await assert.rejects(access(), /إنهاء هذه الجلسة/);
     await db.exec("reset role");
@@ -231,6 +301,7 @@ test("database enforces roles, preserves journals, tracks trusted session identi
     const before = (await db.query("select data from accounting_state")).rows[0]
       .data;
     await db.exec(sql("migrations/003_roles_and_sessions.sql"));
+    await db.exec(sql("migrations/004_activity_identity.sql"));
     assert.deepEqual(
       (await db.query("select data from accounting_state")).rows[0].data,
       before,

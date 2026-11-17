@@ -100,7 +100,7 @@ test("Journal-only Excel import preserves the existing chart, requires partial c
   await expect(
     page.getByRole("button", { name: "تنزيل شجرة الحسابات المكودة" }),
   ).toHaveCount(0);
-  await page.getByRole("checkbox").check();
+  await page.getByRole("dialog").getByRole("checkbox").check();
   await page.getByRole("button", { name: "تأكيد استيراد 1 قيد" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
