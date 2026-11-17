@@ -1,3 +1,4 @@
+import JournalSort from "./JournalSort.jsx";
 import DevicesPanel from "./DevicesPanel.jsx";
 import { accessRpc, deviceInfo } from "./access.js";
 import IncomeStatement from "./IncomeStatement.jsx";
@@ -77,6 +78,7 @@ import JournalDetail from "./JournalDetail";
 import {
   allJournals,
   filterJournals,
+  sortJournals,
   changeJournalState,
   resetJournals,
   validateDraft,
@@ -141,6 +143,10 @@ function App() {
     }),
     [side, setSide] = useState(false),
     [audits, setAudits] = useState([]);
+  const [journalSort, setJournalSort] = useState({
+    field: "date",
+    direction: "desc",
+  });
   const [access, setAccess] = useState(null);
   const [accessError, setAccessError] = useState("");
   const isAdmin = !cloud || access?.role === "admin";
@@ -518,8 +524,13 @@ function App() {
     [data, filter.from, filter.to, filter.accountId, filter.centerId],
   );
   const visibleEntries = useMemo(
-    () => filterJournals(data, filter),
-    [data, filter],
+    () =>
+      filterJournals(
+        data,
+        filter,
+        page === "entries" ? journalSort : undefined,
+      ),
+    [data, filter, journalSort, page],
   );
   const allEntries = useMemo(() => allJournals(data), [data]);
   const currentJournal = allEntries.find((e) => e.id === journalId);
@@ -1336,7 +1347,10 @@ function App() {
                       disabled={busy}
                       onClick={() =>
                         downloadJournals(
-                          allEntries.filter((e) => e.status !== "deleted"),
+                          sortJournals(
+                            allEntries.filter((e) => e.status !== "deleted"),
+                            journalSort,
+                          ),
                         )
                       }
                     >
@@ -1390,6 +1404,7 @@ function App() {
                       {allEntries.filter((e) => e.status === "draft").length})
                     </span>
                   </div>
+                  <JournalSort sort={journalSort} onChange={setJournalSort} />
                   <JournalFilters
                     filter={filter}
                     setFilter={setFilter}
@@ -1424,7 +1439,8 @@ function App() {
                   )}
                   <JournalList
                     canDelete={isAdmin}
-                    queryKey={JSON.stringify(filter)}
+                    queryKey={JSON.stringify({ filter, journalSort })}
+                    showCreatedAt={journalSort.field === "createdAt"}
                     entries={visibleEntries}
                     data={data}
                     open={openJournal}

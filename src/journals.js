@@ -22,53 +22,86 @@ export function normalizeSearch(v) {
     .trim()
     .toLowerCase();
 }
-export function filterJournals(data, f = {}) {
-  return allJournals(data)
-    .filter((e) => {
-      if (f.status ? e.status !== f.status : e.status === "deleted")
-        return false;
-      if ((f.from && e.date < f.from) || (f.to && e.date > f.to)) return false;
-      if (f.accountId && !e.lines.some((l) => l.accountId === f.accountId))
-        return false;
-      if (f.centerId && !e.lines.some((l) => l.centerId === f.centerId))
-        return false;
-      if (f.source && (e.importKey ? "excel" : "manual") !== f.source)
-        return false;
-      if (
-        f.number &&
-        !normalizeSearch(
-          [e.number, e.draftNumber, e.sourceNumber].join(" "),
-        ).includes(normalizeSearch(f.number))
-      )
-        return false;
-      if (
-        f.search &&
-        !normalizeSearch(e.description).includes(normalizeSearch(f.search))
-      )
-        return false;
-      const amount = e.lines.reduce((s, l) => s + (l.debit || 0), 0) / 100;
-      if (
-        (f.minAmount !== "" &&
-          f.minAmount != null &&
-          amount < Number(f.minAmount)) ||
-        (f.maxAmount !== "" &&
-          f.maxAmount != null &&
-          amount > Number(f.maxAmount))
-      )
-        return false;
-      const created = (e.createdAt || "").slice(0, 10);
-      if (
-        (f.createdFrom && created < f.createdFrom) ||
-        (f.createdTo && created > f.createdTo)
-      )
-        return false;
-      return true;
-    })
-    .sort(
-      (a, b) =>
-        (b.date || "").localeCompare(a.date || "") ||
-        (b.number || 0) - (a.number || 0),
+export function journalCreatedTime(entry) {
+  if (typeof entry.createdAt !== "string" || !entry.createdAt.trim())
+    return null;
+  const timestamp = Date.parse(entry.createdAt);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+export function sortJournals(entries, sort = {}) {
+  const field = ["date", "createdAt", "number"].includes(sort.field)
+    ? sort.field
+    : "date";
+  const direction = sort.direction === "asc" ? 1 : -1;
+  const number = (entry) => {
+    const value = entry.number ?? entry.draftNumber;
+    return value !== "" && value != null && Number.isFinite(Number(value))
+      ? Number(value)
+      : null;
+  };
+  const value = (entry) =>
+    field === "createdAt"
+      ? journalCreatedTime(entry)
+      : field === "number"
+        ? number(entry)
+        : entry.date || null;
+  return [...entries].sort((a, b) => {
+    const av = value(a),
+      bv = value(b);
+    // Unknown creation times are never substituted with the accounting date.
+    // Unknown values belong at the end in both directions.
+    if (av == null && bv != null) return 1;
+    if (bv == null && av != null) return -1;
+    const compare = (x, y) => (x === y ? 0 : x < y ? -1 : 1);
+    return (
+      (compare(av, bv) ||
+        compare(a.date || "", b.date || "") ||
+        compare(number(a) ?? 0, number(b) ?? 0)) * direction ||
+      String(a.id).localeCompare(String(b.id), "en")
     );
+  });
+}
+export function filterJournals(data, f = {}, sort = {}) {
+  const entries = allJournals(data).filter((e) => {
+    if (f.status ? e.status !== f.status : e.status === "deleted") return false;
+    if ((f.from && e.date < f.from) || (f.to && e.date > f.to)) return false;
+    if (f.accountId && !e.lines.some((l) => l.accountId === f.accountId))
+      return false;
+    if (f.centerId && !e.lines.some((l) => l.centerId === f.centerId))
+      return false;
+    if (f.source && (e.importKey ? "excel" : "manual") !== f.source)
+      return false;
+    if (
+      f.number &&
+      !normalizeSearch(
+        [e.number, e.draftNumber, e.sourceNumber].join(" "),
+      ).includes(normalizeSearch(f.number))
+    )
+      return false;
+    if (
+      f.search &&
+      !normalizeSearch(e.description).includes(normalizeSearch(f.search))
+    )
+      return false;
+    const amount = e.lines.reduce((s, l) => s + (l.debit || 0), 0) / 100;
+    if (
+      (f.minAmount !== "" &&
+        f.minAmount != null &&
+        amount < Number(f.minAmount)) ||
+      (f.maxAmount !== "" &&
+        f.maxAmount != null &&
+        amount > Number(f.maxAmount))
+    )
+      return false;
+    const created = (e.createdAt || "").slice(0, 10);
+    if (
+      (f.createdFrom && created < f.createdFrom) ||
+      (f.createdTo && created > f.createdTo)
+    )
+      return false;
+    return true;
+  });
+  return sortJournals(entries, sort);
 }
 function event(data, id, action, details = "") {
   return [

@@ -6,6 +6,7 @@ import {
   ExternalLink,
   Paperclip,
 } from "lucide-react";
+import { journalCreatedTime } from "./journals.js";
 import { money } from "./accounting";
 import { entryDocuments } from "./documents";
 import AccountChip from "./AccountChip";
@@ -15,6 +16,7 @@ export const journalLabel = (e) =>
     : "مسودة D-" + String(e.draftNumber || 1).padStart(4, "0");
 export default function JournalList({
   canDelete = true,
+  showCreatedAt = false,
   entries,
   data,
   open,
@@ -102,6 +104,28 @@ export default function JournalList({
                         : "مرحّل"}
                   </span>
                   <span>{e.importKey ? "مستورد من Excel" : "إدخال يدوي"}</span>
+                  {showCreatedAt && (
+                    <span
+                      className="journal-created-at"
+                      title="تاريخ الإنشاء بتوقيت القاهرة"
+                    >
+                      الإنشاء:{" "}
+                      {journalCreatedTime(e) == null ? (
+                        "غير مسجل"
+                      ) : (
+                        <time dateTime={e.createdAt}>
+                          {new Date(journalCreatedTime(e)).toLocaleString(
+                            "ar-EG",
+                            {
+                              timeZone: "Africa/Cairo",
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            },
+                          )}
+                        </time>
+                      )}
+                    </span>
+                  )}
                   {(docs.length > 0 || e.attachments?.length > 0) && (
                     <button className="link" onClick={() => open(e)}>
                       <Paperclip size={13} />
